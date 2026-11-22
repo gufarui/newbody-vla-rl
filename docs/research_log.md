@@ -112,3 +112,7 @@ Strict success: can inside the target compartment AND not grasped, for 10 consec
   -> SFT already saturates the training distribution; per spec, harden evaluation before RL.
 - Expert on the FULL source bin (can_x +-0.145, can_y +-0.195, ~4x training area), seeds 300000-300059: 59/60
   (1 never_grasped near a wall). The wider region is feasible for the task.
+- 5k checkpoint, val seeds, **50 actions/chunk** (central region): 16/20 (CI 0.58-0.92; 2 never_grasped, 2 dropped)
+  vs 20/20 with 10 actions/chunk -> long open-loop execution hurts, as expected from replay sensitivity.
+- 5k checkpoint, **full-bin start region**, val seeds 100020-100059, 10 actions/chunk: **18/40** (CI 0.31-0.60);
+  failures: 17 never_grasped, 3 dropped, 2 wrong_compartment. Expert on the same region: 59/60.
