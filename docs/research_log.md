@@ -90,3 +90,13 @@ Strict success: can inside the target compartment AND not grasped, for 10 consec
   (orientation held) -> risk for MEAN_STD normalization; decision deferred to Milestone 2.
 - **Dataset v1 final:** state reduced to 5-D (eef xyz + 2 finger joints) after discussion; recollected
   (train 50 / val 10, 160 s + 33 s), 17/17 checks on both splits, replay bit-exact.
+
+## 2026-11-22 — Milestone 2 local smoke test (Mac M4, MPS, free)
+
+- Official `lerobot-train --policy.path=lerobot/smolvla_base` on our train split, batch 2, 3 steps: runs, finite loss
+  (2.53, 3.30, 1.16), ~0.6 s/step on MPS. Cameras mapped with `--rename_map` agentview->camera1, wrist->camera2;
+  camera3 absent (empty_cameras=0 -> skipped, no fake image).
+- One-step tensor inspection (`scripts/inspect_smolvla_batch.py`): prefix 177 tokens (2x64 image + 48 language + 1 state),
+  images resized 256->512 in [-1,1]; state/action padded to 32; action chunk 50; flow matching verified
+  x_t = t*eps + (1-t)*A, u = eps - A (NOISE_AT_ONE); loss masks padded dims and action_is_pad.
+- Params: 450M total, 350M VLM frozen, 100M trainable (action expert 98M + state/action projections + time MLPs).

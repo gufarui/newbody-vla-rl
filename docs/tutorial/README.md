@@ -26,3 +26,4 @@ Concept-only reading along the way: π0.5, π*0.6, π0.7, RLT (what problem, how
 ## Chapters
 
 - [Chapter 1: Simulation, scripted teacher, and demonstrations](ch01_env_and_expert.md)
+- [Chapter 2: SmolVLA — how a VLA turns pixels and words into actions](ch02_smolvla_sft.md) (Part A done; Part B after training)
