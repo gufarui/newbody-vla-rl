@@ -100,3 +100,10 @@ Strict success: can inside the target compartment AND not grasped, for 10 consec
   images resized 256->512 in [-1,1]; state/action padded to 32; action chunk 50; flow matching verified
   x_t = t*eps + (1-t)*A, u = eps - A (NOISE_AT_ONE); loss masks padded dims and action_is_pad.
 - Params: 450M total, 350M VLM frozen, 100M trainable (action expert 98M + state/action projections + time MLPs).
+
+## 2026-11-23 — Milestone 2 GPU run sft_v1 (RTX 4090 D, ¥1.88/h)
+
+- Setup (see scripts/server/setup_autodl.md): ~15 min of installs/downloads via Tsinghua PyPI + hf-mirror.
+  Server: torch 2.15.0+cu132, mujoco 3.3.7, 9/9 tests pass with MUJOCO_GL=egl.
+- GPU smoke, batch 64: 0.56 s/step, 14 GB VRAM, util ~99%; loss 1.31 -> 0.72 in 40 steps.
+- Launched sft_v1: official recipe, batch 64, 20k steps, checkpoints every 5k, seed 1000. ETA ~3.1 h.
