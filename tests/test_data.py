@@ -4,9 +4,9 @@ import yaml
 from pathlib import Path
 
 from newbody.data import schema
-from newbody.env.lift_env import make_lift_env, reset_with_seed
+from newbody.env.pick_place_env import make_env, reset_with_seed
 
-CFG = yaml.safe_load(open(Path(__file__).resolve().parents[1] / "configs/lift_kinova3.yaml"))
+CFG = yaml.safe_load(open(Path(__file__).resolve().parents[1] / "configs/pickplace_can.yaml"))
 
 
 def test_policy_keys_are_only_allowed_ones():
@@ -14,17 +14,17 @@ def test_policy_keys_are_only_allowed_ones():
     assert keys == {"observation.images.agentview", "observation.images.wrist", "observation.state", "action"}
 
 
-def test_state_has_no_cube_information():
-    env = make_lift_env({**CFG["env"], "camera_size": 64}, render_cameras=True)
+def test_state_has_no_can_information():
+    env = make_env({**CFG["env"], "camera_size": 64}, render_cameras=True)
     obs = reset_with_seed(env, 0)
     s0 = schema.state_vector(obs)
-    # Move only the cube: the state vector must not change.
-    jid = env.sim.model.joint_name2id(env.cube.joints[0])
+    # Move only the can: the state vector must not change.
+    jid = env.sim.model.joint_name2id(env.objects[env.object_id].joints[0])
     adr = env.sim.model.jnt_qposadr[jid]
     env.sim.data.qpos[adr:adr + 2] += 0.05
     env.sim.forward()
     obs2 = env._get_observations(force_update=True)
-    assert not np.allclose(obs["cube_pos"], obs2["cube_pos"])
+    assert not np.allclose(obs["Can_pos"], obs2["Can_pos"])
     assert np.allclose(s0, schema.state_vector(obs2))
     frame = schema.make_frame(obs, np.zeros(4))
     assert frame["observation.state"].shape == (9,) and frame["action"].dtype == np.float32

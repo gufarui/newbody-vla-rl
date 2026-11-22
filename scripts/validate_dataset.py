@@ -1,6 +1,6 @@
 """Validate a recorded demo dataset. Every check prints PASS/FAIL with numbers.
 
-    python scripts/validate_dataset.py --name kinova3_lift_v1 --split train --replay 5
+    python scripts/validate_dataset.py --name kinova3_pickplace_can_v1 --split train --replay 5
 
 Checks
  1. Loads through the official LeRobotDataset API; schema, fps, episode/frame counts.
@@ -29,8 +29,8 @@ import yaml
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
 from newbody.data import schema
-from newbody.env.lift_env import get_image, make_lift_env, reset_with_seed
-from newbody.evaluation.success import HoldSuccess
+from newbody.env.pick_place_env import get_image, make_env, reset_with_seed
+from newbody.evaluation.success import PlaceSuccess
 
 ROOT = Path(__file__).resolve().parents[1]
 results = []
@@ -71,11 +71,11 @@ def main():
     check("image tensor CHW float in [0,1]", img.shape == (3, cfg["env"]["camera_size"], cfg["env"]["camera_size"])
           and 0.0 <= float(img.min()) and float(img.max()) <= 1.0, f"shape={tuple(img.shape)} range=[{img.min():.2f},{img.max():.2f}]")
     check("state/action shapes", tuple(item["observation.state"].shape) == (9,) and tuple(item["action"].shape) == (4,))
-    check("task string", item["task"] == schema.TASK, repr(item["task"]))
+    check("task string", item["task"] == cfg["data"]["task"], repr(item["task"]))
 
     # 3 + 4 + 5. orientation, replay, success
-    env = make_lift_env(cfg["env"], render_cameras=True)
-    checker = HoldSuccess(**cfg["success"])
+    env = make_env(cfg["env"], render_cameras=True)
+    checker = PlaceSuccess(**cfg["success"])
     ep_from = ds.meta.episodes["dataset_from_index"]
     ep_to = ds.meta.episodes["dataset_to_index"]
     worst_state_err, replay_success = 0.0, 0
@@ -127,9 +127,9 @@ def main():
     lengths = [r["length"] for r in sim_rows]
     ax.flat[4].hist(lengths, bins=20)
     ax.flat[4].set_title(f"episode length (steps)  mean={np.mean(lengths):.1f}")
-    xy = np.array([r["cube_pos0"][:2] for r in sim_rows])
+    xy = np.array([r["can_pos0"][:2] for r in sim_rows])
     ax.flat[5].scatter(xy[:, 0], xy[:, 1], s=8)
-    ax.flat[5].set_title("initial cube xy (m)")
+    ax.flat[5].set_title("initial can xy (m)")
     ax.flat[5].set_aspect("equal")
     fig.tight_layout()
     fig.savefig(out / f"{args.split}_distributions.png", dpi=80)

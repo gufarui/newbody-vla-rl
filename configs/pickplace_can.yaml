@@ -1,0 +1,39 @@
+# Kinova3 + PickPlaceCan. Milestone 1 config.
+env:
+  robot: Kinova3
+  arm_controller: OSC_POSITION      # action = [dx, dy, dz, gripper] in [-1, 1]; 1.0 = 5 cm target offset
+  hold_orientation: true            # keep gripper pointing down (see pick_place_env.py)
+  control_freq: 20                  # Hz
+  horizon: 300                      # max policy steps per episode (15 s)
+  camera_names: [agentview, robot0_eye_in_hand]
+  camera_size: 256
+  # Stock robosuite: bin1 (0.1, -0.25, 0.8), bin2 (0.1, 0.28, 0.8). Shifted 15 cm toward the robot
+  # because the stock target compartment is at the edge of Kinova3's vertical-gripper workspace.
+  bin1_pos: [-0.05, -0.25, 0.8]
+  bin2_pos: [-0.05, 0.28, 0.8]
+  # Can start region relative to bin1 center (m). Stock: whole bin (+-0.145, +-0.195).
+  can_x_range: [-0.08, 0.08]
+  can_y_range: [-0.10, 0.10]
+
+success:
+  hold_steps: 10                    # can in target compartment AND released, for this many consecutive steps
+
+expert:
+  approach_height: 0.10             # hover above can center before descending (m)
+  grasp_z_offset: 0.0               # eef target z relative to can body center when grasping
+  carry_z: 1.00                     # absolute eef z while carrying; bin walls top at 0.90, can bottom = eef - 0.06 -> 4 cm clearance
+  move_xy_tolerance: 0.03           # start lowering once within 3 cm of the point above the target
+  release_z_above_floor: 0.09       # eef z above bin2 floor when opening the gripper
+  action_gain: 1.0                  # action = clip(gain * pos_error / 0.05)
+  xy_tolerance: 0.01
+  z_tolerance: 0.01
+  gripper_steps: 10                 # steps to wait while closing / opening the gripper
+  phase_timeout: 80                 # max steps in any phase -> failure
+
+# Milestone 1 demonstration collection. Seed ranges never overlap (no initial-state leakage).
+data:
+  task: "Pick up the can and place it in the target bin."
+  splits:
+    train: {seed_start: 0, episodes: 50}
+    val: {seed_start: 100000, episodes: 10}
+    test: {seed_start: 200000}      # closed-loop evaluation only, never recorded

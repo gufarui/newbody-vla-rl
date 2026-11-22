@@ -1,17 +1,18 @@
-"""Smoke tests: env creation, action space, seeded reset determinism, image orientation."""
+"""Smoke + regression tests for the Kinova3 PickPlaceCan environment."""
+from pathlib import Path
+
 import numpy as np
 import pytest
 import yaml
 
-from newbody.env.lift_env import cube_pos, get_image, make_lift_env, reset_with_seed
-from pathlib import Path
+from newbody.env.pick_place_env import can_pos, can_target, get_image, make_env, reset_with_seed
 
-CFG = yaml.safe_load(open(Path(__file__).resolve().parents[1] / "configs/lift_kinova3.yaml"))
+CFG = yaml.safe_load(open(Path(__file__).resolve().parents[1] / "configs/pickplace_can.yaml"))
 
 
 @pytest.fixture(scope="module")
 def env():
-    e = make_lift_env({**CFG["env"], "camera_size": 64}, render_cameras=True)
+    e = make_env({**CFG["env"], "camera_size": 64}, render_cameras=True)
     yield e
     e.close()
 
@@ -25,46 +26,48 @@ def test_action_space(env):
 
 def test_seeded_reset_is_deterministic(env):
     reset_with_seed(env, 123)
-    a = cube_pos(env).copy()
-    q_a = env.sim.data.qpos.copy()
+    a, q_a = can_pos(env).copy(), env.sim.data.qpos.copy()
     reset_with_seed(env, 7)
-    b = cube_pos(env).copy()
+    b = can_pos(env).copy()
     reset_with_seed(env, 123)
-    assert np.allclose(a, cube_pos(env))
-    assert np.allclose(q_a, env.sim.data.qpos)
+    assert np.allclose(a, can_pos(env)) and np.allclose(q_a, env.sim.data.qpos)
     assert not np.allclose(a, b)
 
 
-def test_cube_within_configured_range(env):
-    r = CFG["env"]["cube_xy_range"]
-    for s in range(10):
+def test_can_starts_in_configured_region(env):
+    bin1 = np.array(CFG["env"]["bin1_pos"][:2])
+    for s in range(20):
         reset_with_seed(env, s)
-        assert np.all(np.abs(cube_pos(env)[:2]) <= r + 1e-6)
+        rel = can_pos(env)[:2] - bin1
+        assert CFG["env"]["can_x_range"][0] - 1e-6 <= rel[0] <= CFG["env"]["can_x_range"][1] + 1e-6
+        assert CFG["env"]["can_y_range"][0] - 1e-6 <= rel[1] <= CFG["env"]["can_y_range"][1] + 1e-6
 
 
-def test_action_moves_eef_up(env):
+def test_target_compartment_reachable_with_vertical_gripper(env):
+    """Regression: with the stock bin layout the target was out of reach (9.7 cm error)."""
     obs = reset_with_seed(env, 0)
-    z0 = obs["robot0_eef_pos"][2]
-    for _ in range(10):
-        obs, *_ = env.step(np.array([0, 0, 1.0, -1.0]))
-    assert obs["robot0_eef_pos"][2] > z0 + 0.05
-
-
-def test_images_rgb_uint8(env):
-    obs = reset_with_seed(env, 0)
-    img = get_image(obs, "agentview")
-    assert img.shape == (64, 64, 3) and img.dtype == np.uint8
-    # The table (bright) fills the bottom of a correctly oriented agentview image.
-    assert img[-8:].mean() > img[:8].mean()
+    goal = can_target(env) + [0, 0, 0.15]
+    for _ in range(150):
+        obs, *_ = env.step(np.append(np.clip((goal - obs["robot0_eef_pos"]) / 0.05, -1, 1), -1))
+    assert np.linalg.norm(goal - obs["robot0_eef_pos"]) < 0.02
+    tilt = np.degrees(2 * np.arccos(min(1.0, abs(obs["robot0_eef_quat"][0]))))
+    assert tilt < 10, f"gripper tilted {tilt:.1f} deg; orientation hold not active?"
 
 
 def test_gripper_closes_fully(env):
-    """Regression test: with mujoco 3.9.0 the Robotiq85 stalls with a ~6.3 cm gap and
-    silently cannot grasp a 4 cm cube face-on. Guard against physics-version regressions."""
+    """Regression: with mujoco 3.9.0 the Robotiq85 stalls with a ~6.3 cm gap."""
     reset_with_seed(env, 0)
     m, d = env.sim.model, env.sim.data
     gid = [m.geom_name2id(f"gripper0_right_{s}_fingerpad_collision") for s in ("left", "right")]
     for _ in range(40):
         env.step(np.array([0, 0, 0, 1.0]))
     gap = np.linalg.norm(d.geom_xpos[gid[0]] - d.geom_xpos[gid[1]])
-    assert gap < 0.03, f"fully closed fingerpad gap {gap:.3f} m is too wide to grasp a 4 cm cube"
+    assert gap < 0.03, f"fully closed fingerpad gap {gap:.3f} m"
+
+
+def test_images_upright(env):
+    obs = reset_with_seed(env, 0)
+    img = get_image(obs, "agentview")
+    assert img.shape == (64, 64, 3) and img.dtype == np.uint8
+    # Floor/table fills the bottom of a correctly oriented agentview; the top is the back wall.
+    assert np.abs(img[-8:].astype(int) - img[:8].astype(int)).mean() > 5

@@ -1,16 +1,15 @@
-"""Scripted Finite-State-Machine expert for Lift with OSC_POSITION control.
+"""Scripted Finite-State-Machine expert for PickPlaceCan with OSC_POSITION control.
 
-The expert uses PRIVILEGED state (true cube position read from the simulator).
-That is fine for generating demonstrations, but the learned VLA policy will only
-get camera images + robot proprioception + the language instruction.
+The expert uses PRIVILEGED state: the true can position (obs["Can_pos"]) and the goal
+compartment center (given at reset). The learned VLA only gets camera images, robot
+proprioception and the language instruction.
 
-Control law in each phase (a simple P-controller in Cartesian space):
-    error  = target_pos - eef_pos                      (meters)
-    action = clip(gain * error / 0.05, -1, 1)          (0.05 m = OSC max delta per step)
-The OSC controller then turns this Cartesian delta into joint torques (via the
-Jacobian / operational space dynamics), so the expert never touches joint space.
-
+Control law in every phase (P-controller in Cartesian space):
+    action_xyz = clip(gain * (target - eef_pos) / 0.05, -1, 1)     (0.05 m = OSC max offset)
 Gripper convention in robosuite: -1 = open, +1 = close.
+
+Phases:
+    APPROACH -> DESCEND -> GRASP -> LIFT -> MOVE -> LOWER -> RELEASE -> RETREAT
 """
 from __future__ import annotations
 
@@ -28,33 +27,41 @@ class Phase(str, Enum):
     DESCEND = "DESCEND"
     GRASP = "GRASP"
     LIFT = "LIFT"
-    VERIFY = "VERIFY"
+    MOVE = "MOVE"
+    LOWER = "LOWER"
+    RELEASE = "RELEASE"
+    RETREAT = "RETREAT"
 
 
 @dataclass
 class ExpertConfig:
     approach_height: float = 0.10
     grasp_z_offset: float = 0.0
-    lift_height: float = 0.15
+    carry_z: float = 1.00
+    move_xy_tolerance: float = 0.03
+    release_z_above_floor: float = 0.09
     action_gain: float = 1.0
     xy_tolerance: float = 0.01
     z_tolerance: float = 0.01
-    grasp_close_steps: int = 10
-    phase_timeout: int = 60
+    gripper_steps: int = 10
+    phase_timeout: int = 80
 
 
-class LiftFSMExpert:
+class PickPlaceFSMExpert:
     def __init__(self, cfg: ExpertConfig):
         self.cfg = cfg
+        self.goal = None
         self.reset()
 
-    def reset(self):
+    def reset(self, goal: np.ndarray | None = None):
+        """goal: center of the target compartment (privileged), z = bin floor."""
+        self.goal = None if goal is None else np.asarray(goal, dtype=float)
         self.phase = Phase.APPROACH
         self.phase_steps = 0
-        self.grasp_pos = None
+        self.anchor = None  # fixed point used by GRASP / RELEASE / RETREAT
         self.timed_out_phase: Phase | None = None
 
-    def _move(self, eef: np.ndarray, target: np.ndarray) -> np.ndarray:
+    def _move(self, eef, target):
         return np.clip(self.cfg.action_gain * (target - eef) / OSC_MAX_DELTA, -1.0, 1.0)
 
     def _goto(self, phase: Phase):
@@ -64,34 +71,48 @@ class LiftFSMExpert:
         """Return a 4-D action [dx, dy, dz, gripper] in [-1, 1]."""
         c = self.cfg
         eef = obs["robot0_eef_pos"]
-        cube = obs["cube_pos"]  # privileged
+        can = obs["Can_pos"]  # privileged
         self.phase_steps += 1
         if self.phase_steps > c.phase_timeout and self.timed_out_phase is None:
             self.timed_out_phase = self.phase  # caller ends the episode as a failure
 
-        if self.phase == Phase.APPROACH:
-            target = cube + np.array([0, 0, c.approach_height])
-            err = target - eef
-            if np.linalg.norm(err[:2]) < c.xy_tolerance and abs(err[2]) < 2 * c.z_tolerance:
+        def reached(target, xy_tol=c.xy_tolerance, z_tol=c.z_tolerance):
+            e = target - eef
+            return np.linalg.norm(e[:2]) < xy_tol and abs(e[2]) < z_tol
+
+        p = self.phase
+        if p == Phase.APPROACH:
+            target, grip = can + [0, 0, c.approach_height], OPEN
+            if reached(target, z_tol=2 * c.z_tolerance):
                 self._goto(Phase.DESCEND)
-            return np.append(self._move(eef, target), OPEN)
-
-        if self.phase == Phase.DESCEND:
-            target = cube + np.array([0, 0, c.grasp_z_offset])
-            err = target - eef
-            if np.linalg.norm(err) < c.z_tolerance:
-                self.grasp_pos = target.copy()
+        elif p == Phase.DESCEND:
+            target, grip = can + [0, 0, c.grasp_z_offset], OPEN
+            if reached(target):
+                self.anchor = target.copy()
                 self._goto(Phase.GRASP)
-            return np.append(self._move(eef, target), OPEN)
-
-        if self.phase == Phase.GRASP:
-            # hold still while the fingers close
-            if self.phase_steps >= c.grasp_close_steps:
+        elif p == Phase.GRASP:
+            target, grip = self.anchor, CLOSE
+            if self.phase_steps >= c.gripper_steps:
                 self._goto(Phase.LIFT)
-            return np.append(self._move(eef, self.grasp_pos), CLOSE)
-
-        # LIFT and VERIFY: keep closed, move/hold above grasp point
-        target = self.grasp_pos + np.array([0, 0, c.lift_height])
-        if self.phase == Phase.LIFT and abs(target[2] - eef[2]) < 2 * c.z_tolerance:
-            self._goto(Phase.VERIFY)
-        return np.append(self._move(eef, target), CLOSE)
+        elif p == Phase.LIFT:
+            target, grip = np.array([self.anchor[0], self.anchor[1], c.carry_z]), CLOSE
+            if reached(target, xy_tol=0.03, z_tol=2 * c.z_tolerance):
+                self._goto(Phase.MOVE)
+        elif p == Phase.MOVE:
+            target, grip = np.array([self.goal[0], self.goal[1], c.carry_z]), CLOSE
+            # Start lowering once roughly above the compartment: the exact point above the target at
+            # carry height is the most stretched arm pose (reach limit); LOWER finishes alignment lower.
+            if reached(target, xy_tol=c.move_xy_tolerance, z_tol=3 * c.z_tolerance):
+                self._goto(Phase.LOWER)
+        elif p == Phase.LOWER:
+            target, grip = self.goal + [0, 0, c.release_z_above_floor], CLOSE
+            if reached(target, xy_tol=1.5 * c.xy_tolerance, z_tol=1.5 * c.z_tolerance):
+                self.anchor = target.copy()
+                self._goto(Phase.RELEASE)
+        elif p == Phase.RELEASE:
+            target, grip = self.anchor, OPEN
+            if self.phase_steps >= c.gripper_steps:
+                self._goto(Phase.RETREAT)
+        else:  # RETREAT: move straight up with the gripper open, then hold
+            target, grip = self.anchor + [0, 0, 0.12], OPEN
+        return np.append(self._move(eef, target), grip)

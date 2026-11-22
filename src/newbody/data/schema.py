@@ -3,7 +3,7 @@
 Rules
 - Only keys starting with "observation." or "action" become policy inputs/outputs in LeRobot
   (lerobot.utils.feature_utils.dataset_to_policy_features). Privileged simulator state
-  (cube pose, seed, contacts) therefore never goes into the LeRobot dataset; it is written to
+  (can pose, target compartment, seed, contacts) therefore never goes into the LeRobot dataset; it is written to
   a separate sidecar file (see record.py).
 - Frame t pairs the observation BEFORE acting with the action taken at that observation:
       (o_t, a_t)  ->  env.step(a_t)  ->  o_{t+1}
@@ -12,9 +12,9 @@ from __future__ import annotations
 
 import numpy as np
 
-from newbody.env.lift_env import get_image
+from newbody.env.pick_place_env import get_image
 
-TASK = "Lift the red cube"
+TASK = "Pick up the can and place it in the target bin."
 
 # Robotiq85 has 6 coupled finger joints; indices 0 and 3 are the left/right driver joints.
 GRIPPER_QPOS_IDX = [0, 3]
@@ -39,9 +39,9 @@ def state_vector(obs: dict) -> np.ndarray:
     ).astype(np.float32)
 
 
-def make_frame(obs: dict, action: np.ndarray) -> dict:
+def make_frame(obs: dict, action: np.ndarray, task: str = TASK) -> dict:
     frame = {key: get_image(obs, cam) for cam, key in CAMERAS.items()}
     frame["observation.state"] = state_vector(obs)
     frame["action"] = np.asarray(action, dtype=np.float32)
-    frame["task"] = TASK
+    frame["task"] = task
     return frame

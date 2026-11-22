@@ -11,21 +11,18 @@ design decisions, and a few interview questions to answer in English.
 
 What we are building, in one sentence:
 
-> Teach a large model that has "seen many robots" (SmolVLA) to control a robot arm it has **never seen** (Kinova3),
-> then use reinforcement learning (RL) to fix its small mistakes.
+> Adapt a pretrained Vision-Language-Action model (SmolVLA) to a robot arm it was not trained on (Kinova3),
+> then freeze it and train a small RL policy that refines its actions.
 
-The steps come in this order, and each one depends on the previous one:
-
-| Ch. | What we do | What you learn | What you can explain in an interview |
+| Milestone | What we do | What you must understand | Interview topic |
 |---|---|---|---|
-| 1 | Make the arm move; write a "teacher" that grasps the cube automatically | simulation, control, action space | where the data comes from |
-| 2 | Record the teacher's behavior as a dataset | imitation learning, data formats | Behavior Cloning |
-| 3 | Fine-tune SmolVLA on that data (remote GPU) | VLA architecture, Flow Matching, SFT | how a VLA outputs actions |
-| 4 | Let the VLA grasp on its own and measure success rate | closed-loop evaluation, compounding error | why low loss does not mean the task is solved |
-| 5 | Freeze the VLA and train a small RL network to correct it | SAC, Q-functions, reward design | Residual RL |
-| 6 | Run comparison experiments | experimental design, statistics | is your conclusion trustworthy |
-| 7 | Turn it into a portfolio; mock interview | explaining the whole project in English | everything |
+| 1 | Simulated Kinova3 pick-and-place; scripted teacher; demo dataset | observation/action, OSC, privileged info, behavior cloning | where the data comes from |
+| 2 | Fine-tune SmolVLA on the demos (remote GPU); closed-loop evaluation | VLM + action expert, flow matching, action chunking, SFT | how a VLA generates actions; why low loss ≠ success |
+| 3 | Freeze the VLA; RLT-inspired residual SAC using VLA features + reference actions | MDP, Q-function, actor-critic, SAC, reward design, residual policy | why freeze the VLA; how RL refines it |
+| 4 | SFT-only vs SFT + RL on the same held-out start states | baselines, controlled comparison, uncertainty, failure analysis | did RL really help? |
+
+Concept-only reading along the way: π0.5, π*0.6, π0.7, RLT (what problem, how at a high level, relation to this project).
 
 ## Chapters
 
-- [Chapter 1: The simulated robot and the scripted teacher](ch01_env_and_expert.md)
+- [Chapter 1: Simulation, scripted teacher, and demonstrations](ch01_env_and_expert.md)

@@ -4,7 +4,7 @@ Output layout (root = data/<name>/<split>):
     <root>/                  LeRobot dataset (videos, parquet, meta/) -- what the VLA trains on
     <root>/../<split>_sim.jsonl   one line per kept episode: seed, cube pose, length, ...
     <root>/../<split>_sim/ep{i}.npz   per-step privileged state (cube pos) for replay checks
-Only successful episodes (strict HoldSuccess) are written to the dataset; failures are
+Only successful episodes (strict PlaceSuccess) are written to the dataset; failures are
 counted and logged in the sidecar's `rejected` list.
 """
 from __future__ import annotations
@@ -16,39 +16,38 @@ import numpy as np
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
 from newbody.data import schema
-from newbody.env.lift_env import cube_pos, make_lift_env, reset_with_seed
-from newbody.evaluation.success import HoldSuccess
-from newbody.expert.fsm_expert import ExpertConfig, LiftFSMExpert
+from newbody.env.pick_place_env import can_pos, can_target, make_env, reset_with_seed
+from newbody.evaluation.success import PlaceSuccess
+from newbody.expert.fsm_expert import ExpertConfig, PickPlaceFSMExpert
 
 
-def rollout_expert(env, expert, checker, seed: int, horizon: int):
+def rollout_expert(env, expert, checker, seed: int, horizon: int, task: str):
     """Run one episode. Returns (frames, privileged per-step dict, success, info)."""
     obs = reset_with_seed(env, seed)
-    expert.reset()
+    goal = can_target(env)
+    expert.reset(goal=goal)
     checker.reset()
-    q = env.sim.data.body_xquat[env.cube_body_id]
-    info = dict(seed=seed, cube_pos0=cube_pos(env).round(5).tolist(), cube_quat0_wxyz=np.round(q, 5).tolist())
-    frames, cube_traj, eef_traj = [], [], []
+    info = dict(seed=seed, can_pos0=can_pos(env).round(5).tolist(), target=goal.round(5).tolist())
+    frames, can_traj, eef_traj = [], [], []
     success = False
     for _ in range(horizon):
         action = expert.act(obs)
-        frames.append(schema.make_frame(obs, action))  # (o_t, a_t)
-        cube_traj.append(cube_pos(env).copy())
+        frames.append(schema.make_frame(obs, action, task))  # (o_t, a_t)
+        can_traj.append(can_pos(env).copy())
         eef_traj.append(obs["robot0_eef_pos"].copy())
         obs, _, _, _ = env.step(action)
         success = checker.update(env)
         if success or expert.timed_out_phase is not None:
             break
     info["length"] = len(frames)
-    priv = dict(cube_pos=np.array(cube_traj), eef_pos=np.array(eef_traj),
-                final_cube_pos=cube_pos(env).copy())
+    priv = dict(can_pos=np.array(can_traj), eef_pos=np.array(eef_traj), final_can_pos=can_pos(env).copy())
     return frames, priv, success, info
 
 
 def record(cfg: dict, out_dir: Path, split: str, n_episodes: int, seed_start: int, max_attempts: int | None = None):
-    env = make_lift_env(cfg["env"], render_cameras=True)
-    expert = LiftFSMExpert(ExpertConfig(**cfg["expert"]))
-    checker = HoldSuccess(**cfg["success"])
+    env = make_env(cfg["env"], render_cameras=True)
+    expert = PickPlaceFSMExpert(ExpertConfig(**cfg["expert"]))
+    checker = PlaceSuccess(**cfg["success"])
     root = out_dir / split
     ds = LeRobotDataset.create(
         repo_id=f"local/{out_dir.name}_{split}", fps=cfg["env"]["control_freq"], root=root,
@@ -60,7 +59,7 @@ def record(cfg: dict, out_dir: Path, split: str, n_episodes: int, seed_start: in
     kept, rejected, seed = [], [], seed_start
     max_attempts = max_attempts or 2 * n_episodes
     while len(kept) < n_episodes and seed < seed_start + max_attempts:
-        frames, priv, success, info = rollout_expert(env, expert, checker, seed, cfg["env"]["horizon"])
+        frames, priv, success, info = rollout_expert(env, expert, checker, seed, cfg["env"]["horizon"], cfg["data"]["task"])
         if success:
             for f in frames:
                 ds.add_frame(f)
