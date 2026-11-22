@@ -116,3 +116,7 @@ Strict success: can inside the target compartment AND not grasped, for 10 consec
   vs 20/20 with 10 actions/chunk -> long open-loop execution hurts, as expected from replay sensitivity.
 - 5k checkpoint, **full-bin start region**, val seeds 100020-100059, 10 actions/chunk: **18/40** (CI 0.31-0.60);
   failures: 17 never_grasped, 3 dropped, 2 wrong_compartment. Expert on the same region: 59/60.
+- **Checkpoint selection (full-bin val seeds 100020-100059, 10 actions/chunk), pre-registered rule
+  "stop when consecutive checkpoints differ by <=3/40":** 5k 18/40, 10k 22/40 (paired: 6 only-10k vs 2 only-5k,
+  McNemar p~0.29), 15k 21/40 (paired vs 10k: 4 vs 3). Train loss kept falling (5k 0.041, 10k 0.015, 12k 0.012)
+  while closed-loop success plateaued -> training stopped at ~16.4k by user agreement; chosen checkpoint **10k**.
