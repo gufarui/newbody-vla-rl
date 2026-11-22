@@ -9,10 +9,12 @@ dependencies = [
     #  - mujoco 4.x: robosuite 1.5.2 crashes (AssertionError in get_joint_qpos_addr)
     #  - mujoco 3.9.0: runs, but Robotiq85 cannot close below ~6.3 cm (3.3.7: 1.5 cm) -> silent grasp failures
     "mujoco==3.3.7",
-    "numpy<2.3",
+    "numpy>=2.0,<2.3",
     "pyyaml",
     "imageio",
     "imageio-ffmpeg",
+    "lerobot[dataset,smolvla]==0.7.0",
+    "matplotlib>=3.11.2",
 ]
 
 [dependency-groups]
@@ -28,3 +30,8 @@ packages = ["src/newbody"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 filterwarnings = ["ignore::SyntaxWarning", "ignore::DeprecationWarning"]
+
+[tool.uv]
+# robosuite 1.5.2 -> mink 0.0.5 pins numpy<2, but lerobot 0.7.0 needs numpy>=2.
+# mink is only used for GR1 humanoid whole-body IK (not used here). Verified: tests + expert 100/100 on numpy 2.
+override-dependencies = ["numpy>=2.0,<2.3"]

@@ -26,3 +26,12 @@ expert:
   z_tolerance: 0.01                 # m
   grasp_close_steps: 10             # steps to keep closing gripper before lifting
   phase_timeout: 60                 # max steps in any single phase -> failure
+
+# Milestone 2: demonstration collection. Seed ranges never overlap, so initial states
+# used for training, validation and final testing are disjoint (no state leakage).
+data:
+  cube_xy_range: 0.10               # wider than robosuite's +-3 cm default
+  splits:
+    train: {seed_start: 0, episodes: 100}
+    val: {seed_start: 100000, episodes: 20}
+    test: {seed_start: 200000}      # test seeds: closed-loop evaluation only, never recorded
