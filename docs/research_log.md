@@ -120,3 +120,5 @@ Strict success: can inside the target compartment AND not grasped, for 10 consec
   "stop when consecutive checkpoints differ by <=3/40":** 5k 18/40, 10k 22/40 (paired: 6 only-10k vs 2 only-5k,
   McNemar p~0.29), 15k 21/40 (paired vs 10k: 4 vs 3). Train loss kept falling (5k 0.041, 10k 0.015, 12k 0.012)
   while closed-loop success plateaued -> training stopped at ~16.4k by user agreement; chosen checkpoint **10k**.
+- Final test eval first ran at ~80 s/episode: torch defaulted to 128 CPU threads on an 18-core container quota
+  (heavy cgroup throttling). Restarted with OMP_NUM_THREADS=8 -> ~8 s/episode. Partial results of the slow run discarded.

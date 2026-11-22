@@ -24,3 +24,7 @@ tmux new-session -d -s sft scripts/server/run_sft_v1.sh
 ```
 
 Measured: batch 64 -> 0.56 s/step, 14 GB VRAM, GPU util ~99%, data loading negligible after warm-up.
+
+**Pitfall (measured 2026-11-23):** the container has an 18-core CPU quota, but torch sees the host's 256 cores and
+defaults to 128 threads. Two eval processes (~152 threads each) were CPU-throttled in 59% of scheduler periods:
+80 s/episode with the GPU at 1%. `OMP_NUM_THREADS=8` (in server_env.sh) -> 8 s/episode, 10x faster.
