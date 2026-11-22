@@ -7,6 +7,8 @@ SFT of `lerobot/smolvla_base` → **frozen VLA + residual SAC** → controlled e
 
 Status: Milestone 0 (environment) and Milestone 1 (scripted expert) done. See [docs/research_log.md](docs/research_log.md).
 
+Hands-on tutorial (Chinese, follow along step by step): [docs/tutorial/](docs/tutorial/README.md)
+
 ## Install
 
 ```bash
@@ -34,5 +36,7 @@ src/newbody/expert/     FSM scripted expert (privileged cube state)
 src/newbody/evaluation/ stricter hold-success check
 scripts/            CLI entry points
 tests/              smoke + regression tests
-docs/               research log, learning notes
+docs/tutorial/      hands-on tutorial, one chapter per milestone
+docs/               research log
+playground/         your own practice scripts from the tutorial
 ```
