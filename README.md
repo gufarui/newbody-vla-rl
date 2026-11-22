@@ -7,7 +7,6 @@ SFT of `lerobot/smolvla_base` → **frozen VLA + RLT-inspired residual SAC** →
 
 - Scope and decisions: [docs/project_spec.md](docs/project_spec.md)
 - Experiment log: [docs/research_log.md](docs/research_log.md)
-- Learning notes (one chapter per milestone): [docs/tutorial/](docs/tutorial/README.md)
 
 Status: Milestone 1 (simulation + scripted expert + demo dataset) in progress.
 
@@ -47,5 +46,5 @@ src/newbody/evaluation/  stricter place-success check
 src/newbody/data/        dataset schema + LeRobot recorder
 scripts/                 CLI entry points
 tests/                   smoke + regression tests
-docs/                    spec, research log, learning notes
+docs/                    spec, research log, GPU plan, figures
 ```

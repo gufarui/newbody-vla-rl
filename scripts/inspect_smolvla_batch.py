@@ -4,7 +4,7 @@ We do not re-implement anything: we wrap a few SmolVLA functions with "spies" th
 tensors flowing through them, then run the official trainer for one step on our dataset.
 
     python scripts/inspect_smolvla_batch.py            # runs on MPS (Mac) or CUDA if available
-Writes results/inspect_smolvla_batch.json (used by docs/tutorial/ch02).
+Writes results/inspect_smolvla_batch.json.
 """
 from __future__ import annotations
 
