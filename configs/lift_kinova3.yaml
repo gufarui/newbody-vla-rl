@@ -1,0 +1,28 @@
+# Environment + expert config for Milestone 0/1.
+env:
+  name: Lift
+  robot: Kinova3
+  arm_controller: OSC_POSITION      # action = [dx, dy, dz, gripper] in [-1, 1]
+  control_freq: 20                  # Hz (policy steps per simulated second)
+  horizon: 200                      # max policy steps per episode (10 s)
+  camera_names: [agentview, robot0_eye_in_hand]
+  camera_size: 256
+  # Cube initial xy range relative to table center (meters).
+  # Official robosuite default is +-0.03. Widen later for data collection.
+  cube_xy_range: 0.03
+  cube_yaw: null                    # null = robosuite default, uniform 0..2pi
+
+success:
+  lift_height: 0.04                 # cube must be this far above table top...
+  hold_steps: 10                    # ...for this many consecutive policy steps
+  require_grasp: true               # ...while the gripper is actually grasping it
+
+expert:
+  approach_height: 0.10             # hover height above cube before descending (m)
+  grasp_z_offset: 0.0               # eef target z relative to cube center when grasping
+  lift_height: 0.15                 # lift eef this far above the grasp point
+  action_gain: 1.0                  # action = clip(gain * pos_error / 0.05)
+  xy_tolerance: 0.01                # m
+  z_tolerance: 0.01                 # m
+  grasp_close_steps: 10             # steps to keep closing gripper before lifting
+  phase_timeout: 60                 # max steps in any single phase -> failure

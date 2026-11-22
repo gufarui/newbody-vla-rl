@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+# experiment outputs, datasets and checkpoints are synced with rsync, not git
+/results/
+/data/
+/checkpoints/
+/outputs/
+/wandb/
+*.mp4
+*.pt
+*.safetensors
+MUJOCO_LOG.TXT

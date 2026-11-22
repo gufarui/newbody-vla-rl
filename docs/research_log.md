@@ -1,0 +1,37 @@
+# Research Log
+
+## 2026-11-22 — Milestone 0 + 1 (local, CPU only)
+
+**Setup.** robosuite 1.5.2, Python 3.12 (lerobot 0.7.0 requires >=3.12), macOS M4 CPU.
+Kinova3 (7-DoF) + Robotiq85, Lift task, `OSC_POSITION` (action = [dx, dy, dz, gripper] in [-1,1],
+dx..dz scaled to +-5 cm per step), control 20 Hz, sim dt 2 ms (25 physics steps per action).
+
+**Finding 1 — mujoco 4.0.1 crashes robosuite 1.5.2** (`AssertionError` in `get_joint_qpos_addr`).
+
+**Finding 2 — mujoco 3.9.0 silently breaks the Robotiq85 gripper.**
+First expert run: 5/20 success. Diagnosis chain:
+1. Failures reached VERIFY with the gripper closed but `grasping=0`, cube never lifted.
+2. Success vs cube yaw (40 eps): only yaw%90 in ~[30, 60] deg succeeded.
+3. Fixed-yaw test: 0 deg -> 0/10, 20 deg -> 0/10, 45 deg -> 9/10.
+4. Contacts at grasp time: at 0 deg **no gripper geom touches the cube** though eef is centered (<1 mm).
+5. Fully closed fingerpad gap = 6.3 cm on mujoco 3.9.0 vs 1.5 cm on 3.3.7 (same for Panda+Robotiq85).
+   A 4 cm cube face never gets touched; only its ~6 cm diagonal (yaw 45 deg) does.
+
+Fix: pin `mujoco==3.3.7`; added `test_gripper_closes_fully` regression test.
+Lesson: a physics-version change can produce no error, only a lower success rate.
+
+**Finding 3 — robosuite Lift randomizes cube yaw uniformly over 360 deg by default**
+(`rotation=None`), not fixed. Kept as default (expert handles it, via a parallel-jaw grasp that self-aligns).
+
+**Stricter success.** robosuite counts success the instant the cube is >4 cm above the table.
+We require: lifted >4 cm **and** `_check_grasp` true for 10 consecutive steps.
+
+**Expert results** (mujoco 3.3.7, random yaw, seeds 0-99, hold-success):
+
+| cube xy range | success | episode length (mean / min / max) |
+|---|---|---|
+| +-3 cm (robosuite default) | 100/100 | 49.9 / 45 / 55 |
+| +-10 cm | 100/100 | 50.7 / 40 / 63 |
+
+Caveat: 100% means the scripted expert is not yet a source of failure-recovery behavior;
+demos will contain only clean trajectories (relevant to covariate shift in Milestone 4).
