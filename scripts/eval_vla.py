@@ -93,10 +93,16 @@ def main():
     p.add_argument("--horizon", type=int, default=None, help="default: env.horizon from config")
     p.add_argument("--videos", type=int, default=5, help="max videos saved per outcome (success / failure)")
     p.add_argument("--device", default="auto")
+    p.add_argument("--can-x-range", type=float, nargs=2, default=None, help="override env can_x_range (m, rel. bin1)")
+    p.add_argument("--can-y-range", type=float, nargs=2, default=None, help="override env can_y_range")
     p.add_argument("--name", required=True)
     args = p.parse_args()
 
     cfg = yaml.safe_load(open(args.config))
+    if args.can_x_range:
+        cfg["env"]["can_x_range"] = list(args.can_x_range)
+    if args.can_y_range:
+        cfg["env"]["can_y_range"] = list(args.can_y_range)
     horizon = args.horizon or cfg["env"]["horizon"]
     out = ROOT / "results/eval" / args.name
     out.mkdir(parents=True, exist_ok=True)
@@ -128,6 +134,7 @@ def main():
         horizon=horizon, success=k, episodes=n, success_rate=k / n, ci95_wilson=[round(lo, 3), round(hi, 3)],
         failure_modes=dict(Counter(r["failure_mode"] for r in rows)),
         chunk_latency_ms=dict(mean=round(1000 * lat.mean(), 1), p95=round(1000 * np.percentile(lat, 95), 1)),
+        can_x_range=cfg["env"]["can_x_range"], can_y_range=cfg["env"]["can_y_range"],
         device=ctrl.device, wall_time_s=round(time.time() - t0, 1),
     )
     json.dump(summary, open(out / "summary.json", "w"), indent=2)

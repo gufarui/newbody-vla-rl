@@ -107,3 +107,8 @@ Strict success: can inside the target compartment AND not grasped, for 10 consec
   Server: torch 2.15.0+cu132, mujoco 3.3.7, 9/9 tests pass with MUJOCO_GL=egl.
 - GPU smoke, batch 64: 0.56 s/step, 14 GB VRAM, util ~99%; loss 1.31 -> 0.72 in 40 steps.
 - Launched sft_v1: official recipe, batch 64, 20k steps, checkpoints every 5k, seed 1000. ETA ~3.1 h.
+- **Checkpoint 5k (epoch ~47, train loss 0.04), val seeds 100000-100019, 10 actions/chunk: 20/20 success**
+  (Wilson 95% CI 0.84-1.00), mean chunk latency 409 ms on GPU while training runs concurrently.
+  -> SFT already saturates the training distribution; per spec, harden evaluation before RL.
+- Expert on the FULL source bin (can_x +-0.145, can_y +-0.195, ~4x training area), seeds 300000-300059: 59/60
+  (1 never_grasped near a wall). The wider region is feasible for the task.

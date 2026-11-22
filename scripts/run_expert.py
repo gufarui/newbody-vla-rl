@@ -71,10 +71,16 @@ def main():
     p.add_argument("--seed-start", type=int, default=0)
     p.add_argument("--videos", type=int, default=2, help="record first N successes (all failures are recorded too)")
     p.add_argument("--set", nargs="*", default=[], help="override expert params, e.g. carry_z=1.0")
+    p.add_argument("--can-x-range", type=float, nargs=2, default=None, help="override env can_x_range (m, rel. bin1)")
+    p.add_argument("--can-y-range", type=float, nargs=2, default=None, help="override env can_y_range")
     p.add_argument("--name", default=None)
     args = p.parse_args()
 
     cfg = yaml.safe_load(open(args.config))
+    if args.can_x_range:
+        cfg["env"]["can_x_range"] = list(args.can_x_range)
+    if args.can_y_range:
+        cfg["env"]["can_y_range"] = list(args.can_y_range)
     for kv in args.set:
         k, v = kv.split("=")
         cfg["expert"][k] = type(cfg["expert"][k])(v)
