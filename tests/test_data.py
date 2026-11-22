@@ -27,7 +27,7 @@ def test_state_has_no_can_information():
     assert not np.allclose(obs["Can_pos"], obs2["Can_pos"])
     assert np.allclose(s0, schema.state_vector(obs2))
     frame = schema.make_frame(obs, np.zeros(4))
-    assert frame["observation.state"].shape == (9,) and frame["action"].dtype == np.float32
+    assert frame["observation.state"].shape == (5,) and frame["action"].dtype == np.float32
     env.close()
 
 

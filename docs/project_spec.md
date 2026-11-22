@@ -50,3 +50,12 @@ The stock robosuite `PickPlaceCan` does not work as-is for Kinova3 with a vertic
    does not hit bin walls; the 3 hidden objects are sampled separately to avoid placement failures.
 4. **Carry height 1.00 m** (4 cm above bin walls); start lowering within 3 cm of the target
    (exact point at carry height is the reach limit).
+
+## Decisions agreed with the human (2026-11-22)
+
+- `observation.state` = 5-D (eef xyz + 2 finger joints); gripper quaternion dropped (near-constant -> MEAN_STD blow-up).
+- Milestone 2: compare executing 10 vs 50 actions per predicted chunk (task is sensitive to small action errors).
+- Milestone 3: residual corrects position only; gripper-timing failures are out of its reach -> report in failure analysis.
+- Milestone 4: consider ~200 eval episodes per method (100 episodes cannot resolve <10-point differences).
+- Be explicit in the report: SmolVLA was pretrained on 6-D joint actions + 3 cameras; our 4-D Cartesian actions + 2
+  cameras mean the action head is largely re-learned from our demos; transfer is mainly visual/language.

@@ -177,7 +177,7 @@ Every step of every teacher episode becomes one **frame**:
 |---|---|---|
 | `observation.images.agentview` | 3×256×256 | front camera |
 | `observation.images.wrist` | 3×256×256 | wrist camera |
-| `observation.state` | 9 | gripper tip xyz, gripper orientation (quaternion, 4), 2 finger joints |
+| `observation.state` | 5 | gripper tip xyz, 2 finger joints |
 | `action` | 4 | dx, dy, dz, gripper (what the teacher did at this step) |
 | `task` | text | "Pick up the can and place it in the target bin." |
 
@@ -242,12 +242,13 @@ Things to notice:
   state has no example of how to recover. This is **covariate shift / compounding error**, and it is one
   of the failure modes residual RL could fix in Milestone 3.
 
-### Open decision for Milestone 2: the 4 orientation numbers in the state
+### Decision: no gripper orientation in the state
 
-Because we hold the gripper vertical, its orientation barely changes (std as small as 0.0004).
-SmolVLA normalizes each state dimension as `(x − mean) / std`. A dimension with a tiny std turns a harmless 1°
-tilt at test time into a huge input value, a classic normalization pitfall.
-Options: drop the quaternion from the state (state becomes 5-D), or keep it. Re-collecting takes ~3 minutes.
+Our first dataset had a 9-D state that included the gripper orientation (a quaternion, 4 numbers).
+Because we hold the gripper vertical, those 4 numbers barely change (std as small as 0.0004).
+SmolVLA normalizes each state dimension as `(x − mean) / std`. A dimension with a tiny std turns a harmless
+1° tilt at test time into a huge input value, a classic **normalization pitfall**.
+**Decision:** drop them; the state is 5-D (gripper tip xyz + 2 finger joints). Re-collected; all checks pass.
 
 ### Practical note: collection speed
 

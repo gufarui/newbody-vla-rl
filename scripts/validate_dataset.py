@@ -74,7 +74,7 @@ def main():
     img = item["observation.images.agentview"]
     check("image tensor CHW float in [0,1]", img.shape == (3, cfg["env"]["camera_size"], cfg["env"]["camera_size"])
           and 0.0 <= float(img.min()) and float(img.max()) <= 1.0, f"shape={tuple(img.shape)} range=[{img.min():.2f},{img.max():.2f}]")
-    check("state/action shapes", tuple(item["observation.state"].shape) == (9,) and tuple(item["action"].shape) == (4,))
+    check("state/action shapes", tuple(item["observation.state"].shape) == (len(schema.STATE_NAMES),) and tuple(item["action"].shape) == (4,))
     check("task string", item["task"] == cfg["data"]["task"], repr(item["task"]))
 
     # 3 + 4 + 5. orientation, replay, success

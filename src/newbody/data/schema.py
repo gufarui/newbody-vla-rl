@@ -19,7 +19,9 @@ TASK = "Pick up the can and place it in the target bin."
 # Robotiq85 has 6 coupled finger joints; indices 0 and 3 are the left/right driver joints.
 GRIPPER_QPOS_IDX = [0, 3]
 
-STATE_NAMES = ["eef_x", "eef_y", "eef_z", "eef_qx", "eef_qy", "eef_qz", "eef_qw", "grip_left", "grip_right"]
+# Gripper orientation (quaternion) is deliberately NOT in the state: we hold it fixed, so it is nearly
+# constant (std down to 4e-4) and MEAN_STD normalization would blow a 1-degree tilt up into a huge input.
+STATE_NAMES = ["eef_x", "eef_y", "eef_z", "grip_left", "grip_right"]
 ACTION_NAMES = ["dx", "dy", "dz", "gripper"]
 CAMERAS = {"agentview": "observation.images.agentview", "robot0_eye_in_hand": "observation.images.wrist"}
 
@@ -35,7 +37,7 @@ def features(image_size: int) -> dict:
 
 def state_vector(obs: dict) -> np.ndarray:
     return np.concatenate(
-        [obs["robot0_eef_pos"], obs["robot0_eef_quat"], obs["robot0_gripper_qpos"][GRIPPER_QPOS_IDX]]
+        [obs["robot0_eef_pos"], obs["robot0_gripper_qpos"][GRIPPER_QPOS_IDX]]
     ).astype(np.float32)
 
 

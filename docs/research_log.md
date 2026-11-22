@@ -88,3 +88,5 @@ Strict success: can inside the target compartment AND not grasped, for 10 consec
   vs `False` 2.3 s (macOS spawns a new process pool per episode that re-imports torch/robosuite).
 - Action stats: saturated at |a|=1 for 6% dx, 46% dy, 16% dz; gripper binary. State quaternion std 0.0004–0.018
   (orientation held) -> risk for MEAN_STD normalization; decision deferred to Milestone 2.
+- **Dataset v1 final:** state reduced to 5-D (eef xyz + 2 finger joints) after discussion; recollected
+  (train 50 / val 10, 160 s + 33 s), 17/17 checks on both splits, replay bit-exact.
