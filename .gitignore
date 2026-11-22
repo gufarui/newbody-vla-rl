@@ -13,5 +13,3 @@ __pycache__/
 *.pt
 *.safetensors
 MUJOCO_LOG.TXT
-playground/*.png
-playground/*.mp4

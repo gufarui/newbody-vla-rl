@@ -38,5 +38,4 @@ scripts/            CLI entry points
 tests/              smoke + regression tests
 docs/tutorial/      hands-on tutorial, one chapter per milestone
 docs/               research log
-playground/         your own practice scripts from the tutorial
 ```

@@ -1,14 +1,11 @@
 # Hands-on Tutorial: Building a VLA + RL Robot Project from Scratch
 
-This tutorial is meant to be **followed while you build**. Every chapter uses the same rhythm:
+These notes explain what we built at each milestone, why, and what the results show.
+The coding agent writes the code; these notes cover what you need to understand to make design decisions
+and to explain the project confidently in an interview.
 
-1. **Do it**: type the code and run the commands yourself
-2. **Predict first**: before running, write down what you expect to happen
-3. **Observe**: look at the output or the video
-4. **Explanation**: why it happened
-5. **Think about it**: a few questions; answers are folded, so think first, then expand
-
-Your own code goes into `playground/`. The project's real code lives in `src/`; the tutorial tells you when to read it.
+Each chapter has: where it fits in the project, key concepts (with our real measurements),
+design decisions, and a few interview questions to answer in English.
 
 ## The project map
 
@@ -19,7 +16,7 @@ What we are building, in one sentence:
 
 The steps come in this order, and each one depends on the previous one:
 
-| Ch. | What you will do | What you learn | What you can explain in an interview |
+| Ch. | What we do | What you learn | What you can explain in an interview |
 |---|---|---|---|
 | 1 | Make the arm move; write a "teacher" that grasps the cube automatically | simulation, control, action space | where the data comes from |
 | 2 | Record the teacher's behavior as a dataset | imitation learning, data formats | Behavior Cloning |
@@ -31,4 +28,4 @@ The steps come in this order, and each one depends on the previous one:
 
 ## Chapters
 
-- [Chapter 1: Make the arm move, and write a teacher that grasps automatically](ch01_env_and_expert.md)
+- [Chapter 1: The simulated robot and the scripted teacher](ch01_env_and_expert.md)
