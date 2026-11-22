@@ -74,3 +74,17 @@ because single-object mode still places all 4 objects in bin1 before hiding 3. F
 | 1.00 + start lowering within 3 cm | **100/100** (seeds 0-99) | 4 cm clearance, mean length 128.8 steps (110-148) |
 
 Strict success: can inside the target compartment AND not grasped, for 10 consecutive steps.
+
+## 2026-11-22 — Demonstration dataset v1 (`data/kinova3_pickplace_can_v1`, not in git)
+
+- train: seeds 0–49, 50/50 kept, 6,413 frames; val: seeds 100000–100009, 10/10 kept, 1,308 frames.
+- Validator 17/17 on both splits; open-loop replay of all 60 episodes bit-exact.
+- **float32 replay drift.** First version executed float64 expert actions but stored float32. Replaying
+  stored actions: alignment exact for the first 20 steps in all episodes, but contact-rich steps amplified
+  the rounding (max state diff 2.7e-2, 1/50 replays failed). Verified cause: replaying the float64 actions
+  gives error 0; float32-rounded gives exactly the observed drift. Fix: cast to float32 before env.step.
+- **Collection speed.** 13.2 s/episode -> 3.2 s/episode. Breakdown per 130-step episode: physics 0.6 s,
+  2-camera render 1.9 s (128 px vs 256 px same cost), LeRobot `save_episode(parallel_encoding=True)` 15.5 s
+  vs `False` 2.3 s (macOS spawns a new process pool per episode that re-imports torch/robosuite).
+- Action stats: saturated at |a|=1 for 6% dx, 46% dy, 16% dz; gripper binary. State quaternion std 0.0004–0.018
+  (orientation held) -> risk for MEAN_STD normalization; decision deferred to Milestone 2.

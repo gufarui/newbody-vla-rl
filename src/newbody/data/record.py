@@ -31,7 +31,9 @@ def rollout_expert(env, expert, checker, seed: int, horizon: int, task: str):
     frames, can_traj, eef_traj = [], [], []
     success = False
     for _ in range(horizon):
-        action = expert.act(obs)
+        # Execute exactly what we store: float32. Otherwise replaying the stored (rounded) actions
+        # can drift in contact-rich steps (measured up to 2.7 cm in 1 of 50 episodes).
+        action = expert.act(obs).astype(np.float32)
         frames.append(schema.make_frame(obs, action, task))  # (o_t, a_t)
         can_traj.append(can_pos(env).copy())
         eef_traj.append(obs["robot0_eef_pos"].copy())
@@ -63,7 +65,9 @@ def record(cfg: dict, out_dir: Path, split: str, n_episodes: int, seed_start: in
         if success:
             for f in frames:
                 ds.add_frame(f)
-            ds.save_episode()
+            # parallel_encoding=True spawns a fresh process pool per episode on macOS; each worker
+            # re-imports torch/lerobot/robosuite. Measured: 15.5 s vs 2.3 s serial for 2 x 130 frames.
+            ds.save_episode(parallel_encoding=False)
             info["episode_index"] = len(kept)
             np.savez_compressed(sim_dir / f"ep{len(kept)}.npz", **priv)
             kept.append(info)

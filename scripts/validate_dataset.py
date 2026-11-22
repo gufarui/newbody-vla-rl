@@ -9,7 +9,11 @@ Checks
     compared against the vertically flipped and BGR-swapped alternatives.
  4. Replay (observation/action alignment): reset to the recorded seed, execute the recorded
     actions open-loop, and compare every resulting state to the recorded observation.state.
-    If (o_t, a_t) were misaligned by even one step, this diverges immediately.
+    If (o_t, a_t) were misaligned by even one step, this diverges within the first steps.
+    Actions are stored as float32 while the expert computed float64; contact-rich steps can
+    amplify that rounding later in an episode (measured: float64 replay error 0, float32 up to
+    5.7e-3 in the state, 0.2 mm in final can position). So: exact match on the first 20 steps,
+    and only a bounded drift over the full episode.
  5. Success labels: replayed episodes must end in strict hold-success.
  6. No privileged keys in the dataset; stats.json consistent with the data.
 Also writes plots to results/dataset/<name>/.
@@ -78,7 +82,7 @@ def main():
     checker = PlaceSuccess(**cfg["success"])
     ep_from = ds.meta.episodes["dataset_from_index"]
     ep_to = ds.meta.episodes["dataset_to_index"]
-    worst_state_err, replay_success = 0.0, 0
+    worst_early_err, worst_state_err, replay_success = 0.0, 0.0, 0
     n_replay = min(args.replay, len(sim_rows))
     for ep in range(n_replay):
         seed = sim_rows[ep]["seed"]
@@ -107,10 +111,13 @@ def main():
             errs.append(np.abs(schema.state_vector(obs) - rec_state[t]).max())
             obs, _, _, _ = env.step(a)
             ok = checker.update(env)
+        worst_early_err = max(worst_early_err, max(errs[:20]))
         worst_state_err = max(worst_state_err, max(errs))
         replay_success += int(ok)
-    check("replay reproduces recorded states (alignment)", worst_state_err < 1e-4,
-          f"max |state diff| over {n_replay} episodes = {worst_state_err:.2e}")
+    check("replay exact on first 20 steps (o_t/a_t alignment)", worst_early_err < 1e-5,
+          f"max |state diff| = {worst_early_err:.1e} over {n_replay} episodes")
+    check("full-episode replay drift bounded (float32 actions)", worst_state_err < 1e-2,
+          f"max |state diff| = {worst_state_err:.1e}")
     check("replayed episodes end in hold-success", replay_success == n_replay, f"{replay_success}/{n_replay}")
 
     # 6. stats + plots

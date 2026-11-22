@@ -20,7 +20,7 @@ Milestone 4  compare SFT-only vs SFT + RL on the same held-out start states
 **Results of this chapter**
 
 - Teacher: **100/100** successful pick-and-place episodes (about 6.4 s each).
-- Dataset: 50 training + 10 validation demonstrations, all checks passed (see Section 8).
+- Dataset: 50 training + 10 validation demonstrations (8,300 frames), 17/17 checks passed, bit-exact replay (Section 8).
 
 ---
 
@@ -169,7 +169,92 @@ Both are now covered by regression tests (`tests/test_env.py`).
 
 ## 8. From teacher to dataset
 
-*(Section completed after collection — see below.)*
+### What one training sample looks like
+
+Every step of every teacher episode becomes one **frame**:
+
+| Key | Shape | Content |
+|---|---|---|
+| `observation.images.agentview` | 3×256×256 | front camera |
+| `observation.images.wrist` | 3×256×256 | wrist camera |
+| `observation.state` | 9 | gripper tip xyz, gripper orientation (quaternion, 4), 2 finger joints |
+| `action` | 4 | dx, dy, dz, gripper (what the teacher did at this step) |
+| `task` | text | "Pick up the can and place it in the target bin." |
+
+| front camera (frame 0) | wrist camera (frame 0) |
+|---|---|
+| ![](../figures/dataset_v1_frame0_agentview.png) | ![](../figures/dataset_v1_frame0_wrist.png) |
+
+Training the VLA to output the teacher's `action` from the observation is **Behavior Cloning (BC)**:
+plain supervised learning on (observation, action) pairs.
+
+**Time alignment matters.** Frame *t* pairs the observation **before** acting with the action taken at it:
+`(o_t, a_t) → env.step(a_t) → o_{t+1}`. If they were shifted by one step, the model would learn to
+predict the action that already happened.
+
+### No privileged information can leak
+
+In LeRobot, **any** key starting with `observation.` automatically becomes a model input.
+So the can position and target location are **not** stored in the dataset at all. They go into a separate
+"sidecar" file used only for checks. A unit test moves the can and verifies that `observation.state` does not change.
+
+### Splits: no shared start states
+
+Each episode is defined by its seed, and the seed ranges never overlap:
+
+| split | seeds | episodes | use |
+|---|---|---|---|
+| train | 0 – 49 | 50 | SFT training |
+| val | 100000 – 100009 | 10 | validation loss during SFT |
+| test | 200000 – … | never recorded | closed-loop evaluation of SFT-only vs SFT+RL |
+
+If test start states also appeared in training, the success rate would measure memorization, not generalization.
+That is **data leakage**.
+
+### How we know the data is correct (17 automatic checks, all passed)
+
+- loads through the official LeRobot API; counts match
+- images upright and in RGB order (compared against a fresh render; flipped/BGR versions differ ~20× more)
+- **replay test**: reset to each episode's seed, execute the stored actions open-loop, compare every state.
+  Result: **bit-exact (error 0.0) for all 60 episodes**, and all 60 still succeed.
+- no extra/privileged keys; stats consistent; actions in [-1, 1]
+
+The replay test caught a real subtlety. At first we stored actions as float32 but executed them as float64.
+That tiny rounding was enough for 1 of 50 replays to drift 2.7 cm and **fail**. Fix: execute exactly the float32
+action we store. Lesson: pick-and-place with contacts is **sensitive to tiny action differences**.
+That sensitivity is exactly what can hurt a VLA that executes long action chunks open-loop (Milestone 2).
+
+### What the data looks like
+
+![](../figures/dataset_v1_distributions.png)
+
+![](../figures/dataset_v1_episode0.png)
+
+Things to notice:
+
+- **Many actions are saturated at ±1** (46% of `dy`, 16% of `dz`): during long moves the teacher goes at full speed.
+- **The gripper is binary** (only −1 or +1). The VLA will output continuous values, so at execution we must
+  decide how to turn them back into open/close (e.g. the sign).
+- **Actions jump at phase changes** (e.g. `dy` from ~0 to +1 when MOVE starts). The VLA has no phase variable;
+  it must infer "which phase am I in" from the images and the state.
+- **Episode length** 110 – 148 steps; **start positions** cover the central region of the bin.
+- All demos are **clean**: the teacher never makes and recovers from mistakes. A VLA that drifts into an unseen
+  state has no example of how to recover. This is **covariate shift / compounding error**, and it is one
+  of the failure modes residual RL could fix in Milestone 3.
+
+### Open decision for Milestone 2: the 4 orientation numbers in the state
+
+Because we hold the gripper vertical, its orientation barely changes (std as small as 0.0004).
+SmolVLA normalizes each state dimension as `(x − mean) / std`. A dimension with a tiny std turns a harmless 1°
+tilt at test time into a huge input value, a classic normalization pitfall.
+Options: drop the quaternion from the state (state becomes 5-D), or keep it. Re-collecting takes ~3 minutes.
+
+### Practical note: collection speed
+
+Collection first took ~13 s per episode. Measured breakdown: physics 0.6 s, rendering 2 cameras 1.9 s,
+**video encoding ~10 s**. LeRobot's default parallel encoding starts new Python processes for every episode,
+and each one re-imports torch and robosuite. Serial encoding: 2.3 s. Now **~3 s per episode**
+(50 episodes in under 3 minutes).
 
 ---
 
@@ -178,8 +263,8 @@ Both are now covered by regression tests (`tests/test_env.py`).
 Answer in English (3–5 sentences each), then send your answers for feedback.
 
 1. *What is the difference between the policy and the controller in your setup, and why does it matter for adapting a pretrained VLA to a new robot?*
-2. *Your scripted expert reads the exact can position. Why is that allowed for the expert but not for the VLA?*
-3. *You changed the stock robosuite task. What did you change, and how did you justify each change?*
+2. *Your scripted expert reads the exact can position. Why is that allowed for the expert but not for the VLA, and how did you make sure it never leaks into the training data?*
+3. *How do you know your demonstration dataset is correct?*
 
 ## Concept recap
 
@@ -190,3 +275,7 @@ Answer in English (3–5 sentences each), then send your answers for feedback.
 - **P controller, closed-loop vs open-loop**
 - **FSM**
 - **Success condition, reward hacking**
+- **Behavior Cloning**, **observation/action time alignment**
+- **Data leakage**, **train/val/test splits by seed**
+- **Normalization (mean/std) pitfalls**
+- **Covariate shift / compounding error**
