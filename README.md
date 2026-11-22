@@ -8,7 +8,7 @@ SFT of `lerobot/smolvla_base` → **frozen VLA + RLT-inspired residual SAC** →
 - Scope and decisions: [docs/project_spec.md](docs/project_spec.md)
 - Experiment log: [docs/research_log.md](docs/research_log.md)
 
-Status: Milestone 1 (simulation + scripted expert + demo dataset) in progress.
+Status: Milestone 1 (simulation, scripted expert, demo dataset) done; Milestone 2 (SmolVLA SFT) training.
 
 ## Install
 
