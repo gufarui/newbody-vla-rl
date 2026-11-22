@@ -1,52 +1,52 @@
-# 第 1 章：让机械臂动起来，并写一个自动抓取的"老师"
+# Chapter 1: Make the Arm Move, and Write a Teacher That Grasps Automatically
 
-## 这一章结束时，你能做到
+## By the end of this chapter you can
 
-- 自己写代码让仿真里的机械臂移动
-- 说清楚"机器人看到了什么（observation）"和"机器人能做什么（action）"
-- 自己写一个小控制器，让机械臂飞到方块上方
-- 看懂项目里的自动抓取老师（scripted expert）是怎么工作的
-- 回答 3 道面试题
+- write code that moves the robot arm in simulation
+- explain clearly "what the robot sees (observation)" and "what the robot can do (action)"
+- write a small controller that flies the gripper to a point above the cube
+- understand how the project's automatic grasping teacher (scripted expert) works
+- answer 3 interview questions
 
-预计时间：1.5 – 2 小时。不用一次做完。
+Estimated time: 1.5 – 2 hours. You don't need to do it in one sitting.
 
-## 为什么要先做这一章？
+## Why does this chapter come first?
 
-最终我们想让 VLA 学会抓方块。VLA 是靠**模仿**学的，所以得先有人示范给它看。
+In the end we want the VLA to learn to grasp a cube. A VLA learns by **imitation**, so someone has to demonstrate the task first.
 
-真实世界里，示范是人拿着遥控器操作出来的。我们在仿真里，可以写一个程序当"老师"：
-它能直接读到方块的精确位置（作弊），然后自动去抓。老师抓几百次，录下来，就是 VLA 的教材。
+In the real world, demonstrations are recorded by a human with a teleoperation device. In simulation, we can write a program to act as the "teacher":
+it can read the cube's exact position directly (it cheats) and then grasp automatically. The teacher grasps a few hundred times, we record it, and that becomes the VLA's training material.
 
-在写老师之前，你得先会让机械臂动。所以这一章分两半：**先玩环境，再写老师**。
+Before writing the teacher, you need to know how to make the arm move. So this chapter has two halves: **play with the environment first, then write the teacher**.
 
 ---
 
-## 准备
+## Setup
 
-打开终端，进入项目目录：
+Open a terminal and go to the project folder:
 
 ```bash
 cd ~/Desktop/robotics学习/newbody-vla-rl
 ```
 
-确认环境能用（会跑 6 个小测试，几秒钟）：
+Check that the environment works (runs 6 small tests, a few seconds):
 
 ```bash
 uv run pytest -q
 ```
 
-> `uv run` 的意思是：用这个项目自己的 Python 环境（`.venv`）来运行后面的命令，
-> 所以你不用手动激活虚拟环境。
+> `uv run` means: run the following command with this project's own Python environment (`.venv`),
+> so you don't need to activate the virtual environment by hand.
 
-看到 `6 passed` 就可以开始了。运行时会打印一堆 `[robosuite WARNING]`，可以忽略。
+When you see `6 passed`, you're ready. Lots of `[robosuite WARNING]` lines get printed; you can ignore them.
 
 ---
 
-## Step 1：打开环境，看看机器人"看到"了什么
+## Step 1: Open the environment and see what the robot "sees"
 
-### 动手
+### Do it
 
-新建文件 `playground/step1_look.py`，**自己敲**下面的代码（不要复制，敲一遍记得更牢）：
+Create `playground/step1_look.py` and **type** this code yourself (don't copy-paste; typing it helps you remember):
 
 ```python
 import numpy as np
@@ -62,68 +62,67 @@ for key, value in obs.items():
 print("action_dim =", env.action_dim)
 ```
 
-逐行说明：
+Line by line:
 
-- `cfg = ...`：读配置文件。打开 `configs/lift_kinova3.yaml` 看一眼，里面写了机器人型号、任务名、相机等。
-- `make_lift_env`：创建仿真环境。它是我们对 robosuite 的一层薄包装，代码在 `src/newbody/env/lift_env.py`。
-- `reset_with_seed(env, seed=0)`：把世界重置到一个初始状态。同一个 seed 永远得到同一个方块位置，这样实验才能复现。
-- `obs`：observation，一个字典，就是机器人此刻"知道"的所有信息。
+- `cfg = ...`: reads the config file. Open `configs/lift_kinova3.yaml` and take a look: robot model, task name, cameras, and so on.
+- `make_lift_env`: creates the simulation environment. It's a thin wrapper around robosuite; the code is in `src/newbody/env/lift_env.py`.
+- `reset_with_seed(env, seed=0)`: resets the world to an initial state. The same seed always gives the same cube position, so experiments are reproducible.
+- `obs`: the observation, a dictionary holding everything the robot "knows" right now.
 
-运行：
+Run it:
 
 ```bash
 uv run python playground/step1_look.py
 ```
 
-### 观察
+### Observe
 
-你会看到大约 17 行输出，每行是一种信息和它的形状（shape）。
+You'll see about 17 lines, each one a type of information and its shape.
 
-### 讲解
+### Explanation
 
-把这些 key 分成三类，你就看懂了：
+Sort these keys into three groups and they make sense:
 
-**1. 机器人对自己身体的感觉（proprioception，本体感觉）**
-就像你闭着眼睛也知道自己的手在哪里。
+**1. The robot's sense of its own body (proprioception)**
+Like how you know where your hand is even with your eyes closed.
 
-- `robot0_joint_pos` (7,)：7 个关节的角度，因为 Kinova3 有 7 个关节（7 DoF，自由度）
-- `robot0_eef_pos` (3,)：夹爪末端在空间中的 x, y, z（eef = end-effector，末端执行器）
-- `robot0_gripper_qpos` (6,)：夹爪手指的开合程度
+- `robot0_joint_pos` (7,): the angles of the 7 joints, because Kinova3 has 7 joints (7 DoF, degrees of freedom)
+- `robot0_eef_pos` (3,): the x, y, z position of the gripper tip in space (eef = end-effector)
+- `robot0_gripper_qpos` (6,): how open or closed the gripper fingers are
 
-**2. 相机图像**
+**2. Camera images**
 
-- `agentview_image` (256, 256, 3)：一个从前方看过来的相机，256×256 像素，RGB 3 个通道
-- `robot0_eye_in_hand_image`：装在手腕上的相机
+- `agentview_image` (256, 256, 3): a camera looking from the front, 256×256 pixels, 3 RGB channels
+- `robot0_eye_in_hand_image`: a camera mounted on the wrist
 
-**3. 物体的精确信息**
+**3. Exact object information**
 
-- `cube_pos` (3,)：方块的精确坐标
-- `gripper_to_cube_pos`：夹爪到方块的向量
+- `cube_pos` (3,): the exact coordinates of the cube
+- `gripper_to_cube_pos`: the vector from the gripper to the cube
 
-最后 `action_dim = 4`，说明每一步我们只需要给机器人 **4 个数字**。下一步就来试。
+Finally, `action_dim = 4` means we only need to give the robot **4 numbers** per step. We'll try that next.
 
-### 想一想
+### Think about it
 
-**Q1.** 现实世界里的一台机器人，上面三类信息中，哪些能直接拿到，哪些拿不到？
+**Q1.** For a real robot in the real world, which of these three groups can you get directly, and which can't you get?
 
-<details><summary>展开答案</summary>
+<details><summary>Show answer</summary>
 
-第 1 类（关节角度、夹爪位置）能拿到：电机上有编码器。
-第 2 类（图像）能拿到：装相机就行。
-第 3 类（方块精确坐标）**拿不到**：现实中没人告诉你方块在哪，只能从图像里看出来。
+Group 1 (joint angles, gripper position): yes, the motors have encoders.
+Group 2 (images): yes, just mount a camera.
+Group 3 (the cube's exact coordinates): **no**. In reality nobody tells you where the cube is; you have to infer it from images.
 
-这种"仿真里有、现实里没有"的信息叫 **privileged information（特权信息）**。
-这是整个项目的一条红线：**老师可以用它，VLA 不能用它**。VLA 只能看图像 + 本体感觉 + 一句文字指令。
+Information that exists in simulation but not in reality is called **privileged information**. It is a hard rule for this whole project: **the teacher may use it, the VLA may not**. The VLA only gets images + proprioception + a text instruction.
 
 </details>
 
 ---
 
-## Step 2：让机械臂往上走
+## Step 2: Move the arm up
 
-### 动手
+### Do it
 
-新建 `playground/step2_move_up.py`：
+Create `playground/step2_move_up.py`:
 
 ```python
 import numpy as np
@@ -131,7 +130,7 @@ import yaml
 from newbody.env.lift_env import make_lift_env, reset_with_seed
 
 cfg = yaml.safe_load(open("configs/lift_kinova3.yaml"))
-env = make_lift_env(cfg["env"], render_cameras=False)   # 不渲染相机，跑得快
+env = make_lift_env(cfg["env"], render_cameras=False)   # no camera rendering, runs faster
 obs = reset_with_seed(env, seed=0)
 
 z_start = obs["robot0_eef_pos"][2]
@@ -142,24 +141,24 @@ for t in range(10):
 print(f"total rise = {obs['robot0_eef_pos'][2] - z_start:.3f} m")
 ```
 
-4 个数字的含义：
+What the 4 numbers mean:
 
-- 前 3 个：让夹爪往 x, y, z 方向移动多少，范围是 -1 到 1
-- 第 4 个：夹爪，-1 = 张开，+1 = 闭合
+- First 3: how far to move the gripper in x, y, z, each in the range -1 to 1
+- 4th: the gripper, -1 = open, +1 = close
 
-**数字 1 对应 5 cm**（配置在 robosuite 的 controller 里）。所以 `dz = 1.0` 的意思是"往上走 5 cm"。
+**A value of 1 corresponds to 5 cm** (set in robosuite's controller config). So `dz = 1.0` means "move up 5 cm".
 
-### 先预测（写下来再运行！）
+### Predict first (write it down before running!)
 
-每一步都命令"往上 5 cm"，一共 10 步。你预测总共上升多少？
+Every step commands "up 5 cm", 10 steps in total. How far do you predict it rises in total?
 
 ```bash
 uv run python playground/step2_move_up.py
 ```
 
-### 观察
+### Observe
 
-<details><summary>先自己运行，再展开对照参考输出</summary>
+<details><summary>Run it yourself first, then expand to compare with the reference output</summary>
 
 ```
 step 0: eef z = 0.964
@@ -169,60 +168,60 @@ step 9: eef z = 1.077
 total rise = 0.117 m
 ```
 
-只上升了约 **12 cm**，不是 50 cm。每一步大约 1.3 cm。
+It only rose about **12 cm**, not 50 cm. Roughly 1.3 cm per step.
 
 </details>
 
-### 讲解
+### Explanation
 
-为什么命令 5 cm，实际只走了 1.3 cm？这里要区分两个东西：
+Why did we command 5 cm but only get 1.3 cm? You need to separate two things:
 
-**Policy（策略）** 是"大脑"：决定"我想往哪走"，就是你给的那 4 个数字。
+**The policy** is the "brain": it decides "where do I want to go". That's the 4 numbers you give.
 
-**Controller（控制器）** 是"小脑 + 肌肉"：把"想往上走 5 cm"变成 7 个关节各用多大力。
-我们用的叫 **OSC（Operational Space Control，操作空间控制）**。
+**The controller** is the "cerebellum + muscles": it turns "I want to go up 5 cm" into how much force each of the 7 joints should apply.
+Ours is called **OSC (Operational Space Control)**.
 
-关键是：`dz = 1` 并不是"瞬移 5 cm"，而是**在当前位置上方 5 cm 处放一个目标点，然后控制器像弹簧一样把手往那里拉**。
-50 毫秒后，下一个动作来了，又重新放一个目标点。手臂有质量、有惯性，50 毫秒内只能被拉过去 1 cm 多。
+The key point: `dz = 1` does not mean "teleport 5 cm". It means **place a target point 5 cm above the current position, and the controller pulls the hand toward it like a spring**.
+50 milliseconds later the next action arrives and a new target point is placed. The arm has mass and inertia, so in 50 ms it only gets pulled a little over 1 cm.
 
-用一个比喻：你牵着一只狗，每隔一会儿就往前扔一个球，但还没等狗跑到，你就又扔了下一个。狗一直在追，跑的速度取决于狗本身。
+An analogy: you walk a dog and keep throwing a ball ahead, but you throw the next ball before the dog reaches the last one. The dog is always chasing, and its running speed depends on the dog itself.
 
-> 这个结论后面很重要：**action 不等于实际发生的运动**。
-> 同一个 action，换一台机器人、换一个控制器，效果就不一样。
-> 这正是"cross-embodiment（跨机器人本体）"难的地方之一。
+> This matters a lot later: **the action is not the motion that actually happens**.
+> The same action on a different robot or with a different controller has a different effect.
+> That is one of the reasons "cross-embodiment" transfer is hard.
 
-为什么我们选"控制末端位置"，而不是直接控制 7 个关节？
+Why do we control the end-effector position instead of the 7 joints directly?
 
-- 直接控制关节（**joint space**）：要往前走 1 cm，你得自己算出 7 个关节各转多少度，这叫 **inverse kinematics（逆运动学）**，很麻烦。
-- 控制末端位置（**Cartesian space**）：说"往前 1 cm"就行，控制器替你算。
+- Controlling joints directly (**joint space**): to move forward 1 cm you'd have to compute how many degrees each of the 7 joints must turn. That's **inverse kinematics**, and it's tedious.
+- Controlling the end-effector position (**Cartesian space**): just say "forward 1 cm" and the controller works it out for you.
 
-动作越简单，后面 VLA 和 RL 就越好学。代价是我们只控制位置，夹爪始终朝下，不能转手腕。
+The simpler the action, the easier it is for the VLA and RL to learn later. The cost: we only control position, the gripper always points down, and the wrist can't rotate.
 
-### 想一想
+### Think about it
 
-**Q2.** 把 `range(10)` 改成 `range(40)`，再运行一次。每一步上升的距离是越来越大、越来越小，还是差不多不变？这说明了什么？
+**Q2.** Change `range(10)` to `range(40)` and run again. Does the rise per step get bigger, get smaller, or stay about the same? What does that tell you?
 
-<details><summary>展开答案</summary>
+<details><summary>Show answer</summary>
 
-几乎不变，每步约 1.2 cm（40 步共上升约 49 cm）。
-因为目标点永远在手的上方 5 cm，"弹簧"一直被拉开同样的长度，所以手臂以一个稳定的速度往上走。
-这个速度由控制器的参数（弹簧多硬、阻尼多大）决定，而不是由你的 action 直接决定。
+It stays almost constant, about 1.2 cm per step (about 49 cm over 40 steps).
+Because the target point is always 5 cm above the hand, the "spring" is always stretched by the same amount, so the arm rises at a steady speed.
+That speed is set by the controller's parameters (how stiff the spring is, how much damping), not directly by your action.
 
 </details>
 
-**Q3.** 把 `action` 改成 `[0.0, 0.0, 0.5, -1.0]`，每步大约走多少？和 1.0 时成比例吗？
+**Q3.** Change `action` to `[0.0, 0.0, 0.5, -1.0]`. About how far does it move per step? Is it proportional to the 1.0 case?
 
-<details><summary>展开答案</summary>
-约 0.64 cm/步，大约是 1.0 时（1.2 cm/步）的一半。目标点放得近一半，弹簧被拉开一半，速度也大约变成一半。
+<details><summary>Show answer</summary>
+About 0.64 cm/step, roughly half of the 1.0 case (1.2 cm/step). The target point is half as far, the spring is stretched half as much, so the speed is roughly halved.
 </details>
 
 ---
 
-## Step 3：两种"频率"
+## Step 3: Two kinds of "frequency"
 
-### 动手
+### Do it
 
-新建 `playground/step3_freq.py`：
+Create `playground/step3_freq.py`:
 
 ```python
 import yaml
@@ -238,40 +237,40 @@ print("sim timestep  =", env.model_timestep, "s")
 uv run python playground/step3_freq.py
 ```
 
-### 讲解
+### Explanation
 
-你会看到 `20 Hz` 和 `0.002 s`。
+You'll see `20 Hz` and `0.002 s`.
 
-- **物理仿真**每 0.002 秒（2 毫秒）算一次：所有力、碰撞、速度、位置。也就是 500 次/秒。物理需要算得很细，否则会算错（比如手指穿过方块）。
-- **Policy** 每秒只做 20 次决定（每 50 毫秒一次）。大脑不需要那么快。
+- The **physics simulation** computes everything every 0.002 s (2 ms): all forces, collisions, velocities, positions. That's 500 times per second. Physics needs fine time steps, otherwise it computes wrong results (for example, a finger passing through the cube).
+- The **policy** only makes 20 decisions per second (one every 50 ms). The brain doesn't need to be that fast.
 
-所以你每调用一次 `env.step(action)`，里面其实发生了：
+So every time you call `env.step(action)`, this is what actually happens inside:
 
 ```
-你给一个 action
-  → 控制器根据 action 设一个目标点
-  → 物理仿真跑 25 小步（每步 2 ms，共 50 ms），每一小步控制器都重新算一次关节力
-  → 返回新的 observation
+you give one action
+  → the controller sets a target point from the action
+  → the physics runs 25 small steps (2 ms each, 50 ms total); in each small step the controller recomputes the joint forces
+  → a new observation is returned
 ```
 
-### 想一想
+### Think about it
 
-**Q4.** 为什么正好是 25 小步？
+**Q4.** Why exactly 25 small steps?
 
-<details><summary>展开答案</summary>
-1 / 20 Hz = 0.05 秒，0.05 / 0.002 = 25。
+<details><summary>Show answer</summary>
+1 / 20 Hz = 0.05 s, and 0.05 / 0.002 = 25.
 </details>
 
-**Q5.** 后面 VLA 推理一次可能要几十毫秒。如果 VLA 每一步都要重新想，最多能跑到多少 Hz？你觉得这会是个问题吗？
-（先记下你的想法，第 4 章会回来讨论，那里会讲 **action chunking**：VLA 一次想好未来好几步。）
+**Q5.** Later, one VLA inference may take tens of milliseconds. If the VLA had to think again at every step, what's the highest Hz it could run at? Do you think that would be a problem?
+(Write down your idea. We come back to it in Chapter 4, which covers **action chunking**: the VLA plans several future steps at once.)
 
 ---
 
-## Step 4：看一眼相机画面
+## Step 4: Look at the camera image
 
-### 动手
+### Do it
 
-新建 `playground/step4_image.py`：
+Create `playground/step4_image.py`:
 
 ```python
 import imageio
@@ -293,33 +292,33 @@ uv run python playground/step4_image.py
 open playground/raw.png playground/flipped.png
 ```
 
-（`open` 是 macOS 命令，用默认看图软件打开图片。）
+(`open` is a macOS command that opens files with the default app.)
 
-### 观察
+### Observe
 
-两张图有什么区别？哪一张是对的？
+What's the difference between the two images? Which one is correct?
 
-### 讲解
+### Explanation
 
-robosuite 输出的图像是**上下颠倒**的（因为底层 OpenGL 的坐标从左下角开始）。`raw[::-1]` 把行的顺序反过来，就是上下翻转。
+robosuite outputs images **upside down** (because the underlying OpenGL coordinates start at the bottom-left corner). `raw[::-1]` reverses the order of the rows, which flips the image vertically.
 
-`uint8` 和 `0 ~ 255`：每个像素的每个颜色通道是 0 到 255 的整数。
+`uint8` and `0 ~ 255`: each color channel of each pixel is an integer from 0 to 255.
 
-这看起来是个小细节，但非常要命：
+This looks like a small detail, but it can be fatal:
 
-> SmolVLA 预训练时见到的都是正常方向的图片。如果我们喂给它颠倒的图，它就像倒着看世界，学起来会非常困难，而且**不会报错**，只会成功率莫名其妙地低。
+> SmolVLA was pretrained on normally oriented images. If we feed it upside-down images, it's like seeing the world upside down. Learning becomes much harder, and **nothing raises an error**; the success rate is just mysteriously low.
 
-第 2 章录数据时，我们会专门检查图像方向、颜色顺序（RGB 还是 BGR）。
+When we record data in Chapter 2, we'll explicitly check image orientation and color order (RGB vs BGR).
 
 ---
 
-## Step 5：自己写一个控制器，飞到方块上方
+## Step 5: Write your own controller to fly above the cube
 
-前面都是"给固定动作"。现在你来写第一个**闭环控制器**：每一步看一眼"我在哪、目标在哪"，然后决定往哪走。
+So far we gave fixed actions. Now you'll write your first **closed-loop controller**: at every step it checks "where am I, where is the target" and then decides where to move.
 
-### 动手
+### Do it
 
-新建 `playground/step5_approach.py`，把 `TODO` 那一行补完：
+Create `playground/step5_approach.py` and fill in the `TODO` line:
 
 ```python
 import sys
@@ -336,116 +335,118 @@ obs = reset_with_seed(env, seed=0)
 for t in range(40):
     eef = obs["robot0_eef_pos"]
     cube = obs["cube_pos"]
-    target = cube + np.array([0.0, 0.0, 0.10])     # 方块正上方 10 cm
-    error = target - eef                            # 还差多远（米）
+    target = cube + np.array([0.0, 0.0, 0.10])     # 10 cm directly above the cube
+    error = target - eef                            # how far we still are (meters)
 
-    # TODO: 根据 error 算出 action_xyz（3 个数，每个都要在 -1 到 1 之间）
-    # 提示：动作 1.0 对应 0.05 m。误差大就走快，误差小就走慢。可以用 np.clip 限制范围。
+    # TODO: compute action_xyz from error (3 numbers, each between -1 and 1)
+    # Hint: action 1.0 corresponds to 0.05 m. Large error -> move fast, small error -> move slowly.
+    #       np.clip can limit the range.
     action_xyz = ...
 
-    action = np.append(action_xyz, -1.0)           # 夹爪保持张开
+    action = np.append(action_xyz, -1.0)           # keep the gripper open
     obs, reward, done, info = env.step(action)
     if t % 4 == 0:
         print(f"t={t:2d}  error(cm) = {np.round(error * 100, 1)}  |error| = {np.linalg.norm(error) * 100:.1f} cm")
 ```
 
-先自己想 5 分钟再看答案。
+Think for 5 minutes before you look at the answer.
 
-<details><summary>参考答案</summary>
+<details><summary>Reference answer</summary>
 
 ```python
 action_xyz = np.clip(GAIN * error / 0.05, -1.0, 1.0)
 ```
 
-- `error / 0.05`：把"米"换算成"动作单位"
-- `GAIN`：放大倍数
-- `np.clip(..., -1, 1)`：超出范围就截断
+- `error / 0.05`: converts "meters" into "action units"
+- `GAIN`: an amplification factor
+- `np.clip(..., -1, 1)`: cuts off anything outside the range
 
 </details>
 
-运行，`GAIN` 用 1.0：
+Run it with `GAIN` = 1.0:
 
 ```bash
 uv run python playground/step5_approach.py 1.0
 ```
 
-### 讲解
+### Explanation
 
-你刚写的叫 **P 控制器（proportional controller，比例控制）**：动作和误差成正比。
-离得远，就走得快；快到了，就慢下来。
+What you just wrote is a **P controller (proportional controller)**: the action is proportional to the error.
+Far away, it moves fast; close to the target, it slows down.
 
-它是**闭环（closed-loop）** 的：每一步都重新测量 `eef`，所以就算控制器有偏差、机械臂有惯性，下一步也会自动纠正。
+It's **closed-loop**: it re-measures `eef` at every step, so even if the controller has some offset or the arm has inertia, the next step corrects it automatically.
 
-对比一下 Step 2：那是**开环（open-loop）**，你只管给动作，不看结果。
+Compare with Step 2: that was **open-loop**. You just gave actions and never looked at the result.
 
-> 记住这对概念。第 4 章会遇到它的"大号版本"：
-> VLA 一次预测未来 50 步动作然后闭着眼执行（偏开环），还是每几步就重新看一眼（偏闭环）？
+> Remember this pair of concepts. Chapter 4 meets the "big version" of it:
+> does the VLA predict 50 future actions and execute them with its eyes closed (closer to open-loop),
+> or does it look again every few steps (closer to closed-loop)?
 
-### 动手做实验：改 GAIN
+### Experiment: change GAIN
 
-**先预测**：GAIN = 0.3 和 GAIN = 5.0，哪个更快到达？会不会冲过头（误差变成负数）？写下来，然后运行：
+**Predict first**: with GAIN = 0.3 and GAIN = 5.0, which one arrives faster? Will either overshoot (error becomes negative)? Write it down, then run:
 
 ```bash
 uv run python playground/step5_approach.py 0.3
 uv run python playground/step5_approach.py 5.0
 ```
 
-<details><summary>参考输出（seed=0，看 x 方向误差那一列）</summary>
+<details><summary>Reference output (seed=0, look at the x error column)</summary>
 
-| GAIN | 误差首次 < 1 cm | 冲过头了吗 |
+| GAIN | error first < 1 cm | overshoot? |
 |---|---|---|
-| 0.3 | 约 t=32~36 | 没有，慢慢靠近 |
-| 1.0 | 约 t=16~20 | 有一点：x 误差变成 -0.8 cm 再回来 |
-| 5.0 | 约 t=16 | 几乎没有，最后误差到 0.0 |
+| 0.3 | around t=32~36 | no, approaches slowly |
+| 1.0 | around t=16~20 | a little: x error goes to -0.8 cm, then comes back |
+| 5.0 | around t=16 | almost none, final error reaches 0.0 |
 
 </details>
 
-### 想一想
+### Think about it
 
-**Q6.** GAIN 很大时，大部分时间 action 都是多少？（提示：看 `np.clip`。）所以远处的速度由什么决定？
+**Q6.** With a large GAIN, what is the action most of the time? (Hint: look at `np.clip`.) So what determines the speed when far away?
 
-<details><summary>展开答案</summary>
+<details><summary>Show answer</summary>
 
-GAIN 大时，`GAIN * error / 0.05` 远大于 1，被 clip 成 ±1。也就是远处都是"全速"，速度上限由 action 范围和控制器决定。
-只有离得很近时，才进入"比例"区间，开始减速。
+With a large GAIN, `GAIN * error / 0.05` is much larger than 1 and gets clipped to ±1. So far away it's always "full speed", and the speed limit comes from the action range and the controller.
+Only when very close does it enter the "proportional" region and start slowing down.
 
 </details>
 
-**Q7.** 为什么 GAIN = 1.0 反而有一点冲过头，而 5.0 几乎没有？
-这个问题没有标准答案，说说你的猜测就行。（提示：回想 Step 2 的"牵狗"比喻：action 放的是目标点，控制器像弹簧一样拉。）
+**Q7.** Why does GAIN = 1.0 overshoot a little while 5.0 barely does?
+There's no single correct answer here; just share your guess. (Hint: remember the dog-and-ball analogy from Step 2: the action places a target point, and the controller pulls like a spring.)
 
 ---
 
-## Step 6：看项目里的老师是怎么抓方块的
+## Step 6: See how the project's teacher grasps the cube
 
-你已经会"飞到方块上方"了。完整的抓取只是再多几个阶段：
+You can already "fly above the cube". A full grasp just adds a few more stages:
 
 ```
-APPROACH → DESCEND → GRASP → LIFT → VERIFY
-飞到上方    下降到方块    闭合夹爪    抬起来     检查是否成功
+APPROACH  →  DESCEND        →  GRASP         →  LIFT     →  VERIFY
+fly above    go down to cube    close gripper    lift it     check success
 ```
 
-这种"分阶段、满足条件就切换到下一阶段"的程序叫 **FSM（Finite State Machine，有限状态机）**。
+A program that "works in stages and switches to the next stage when a condition is met" is called an **FSM (Finite State Machine)**.
 
-### 动手：读代码
+### Do it: read the code
 
-打开 `src/newbody/expert/fsm_expert.py`，找到 `act` 函数。对照着读，回答：
+Open `src/newbody/expert/fsm_expert.py` and find the `act` function. Read along and answer:
 
-1. APPROACH 阶段的 `target` 是什么？和你 Step 5 写的一样吗？
-2. 什么条件下从 APPROACH 切换到 DESCEND？
-3. GRASP 阶段为什么要原地停 10 步？（看 `grasp_close_steps`）
-4. `_move` 函数和你写的 P 控制器有什么区别？
+1. What is `target` in the APPROACH stage? Is it the same as what you wrote in Step 5?
+2. Under what condition does it switch from APPROACH to DESCEND?
+3. Why does the GRASP stage stay in place for 10 steps? (Look at `grasp_close_steps`.)
+4. How does the `_move` function differ from your P controller?
 
-### 动手：运行老师
+### Do it: run the teacher
 
 ```bash
 uv run python scripts/run_expert.py --episodes 5 --videos 5 --name my_first_run
 open results/expert/my_first_run/seed0_success.mp4
 ```
 
-视频左边是前方相机，右边是手腕相机。
+In the video, the left side is the front camera and the right side is the wrist camera.
 
-再看看老师每一步做了什么。`steps_seed0.csv` 记录了每一步的阶段、动作、高度。下面的命令只打印**阶段切换**的那几行：
+Now look at what the teacher did at each step. `steps_seed0.csv` records the stage, action and heights for every step. The command below prints only the rows where the **stage changes**:
 
 ```bash
 uv run python -c "
@@ -458,142 +459,142 @@ for r in csv.DictReader(open('results/expert/my_first_run/steps_seed0.csv')):
 "
 ```
 
-### 想一想
+### Think about it
 
-**Q8.** 方块静止在桌上时，`cube_z_above_table` 大约是 0.02。为什么不是 0？
-<details><summary>展开答案</summary>
-记录的是方块**中心**的高度。方块边长约 4 cm，中心离桌面约 2 cm。
+**Q8.** When the cube rests on the table, `cube_z_above_table` is about 0.02. Why isn't it 0?
+<details><summary>Show answer</summary>
+It records the height of the cube's **center**. The cube's side is about 4 cm, so its center is about 2 cm above the table.
 </details>
 
-**Q9.** 从哪一步开始 `grasping` 变成 1？是夹爪开始闭合的那一刻吗？
+**Q9.** At which step does `grasping` become 1? Is it the moment the gripper starts closing?
 
 ---
 
-## Step 7：怎么判断"成功"？
+## Step 7: How do we decide "success"?
 
-robosuite 官方的规则是：**某一瞬间**方块中心高于桌面 4 cm，就算成功。
+robosuite's official rule: if **at any single instant** the cube's center is more than 4 cm above the table, it counts as success.
 
-### 想一想（先自己想，再往下读）
+### Think about it (think first, then read on)
 
-**Q10.** 这个规则有什么漏洞？能不能想出一种"没有真正抓起来，却被判成功"的情况？
+**Q10.** What's the loophole in this rule? Can you come up with a case where the cube is "not really grasped and lifted, but still judged a success"?
 
-<details><summary>展开答案</summary>
+<details><summary>Show answer</summary>
 
-比如夹爪把方块**撞飞**或**弹起来**，方块在空中的某一帧超过了 4 cm，就被算成功了。
+For example, the gripper **knocks the cube flying** or **bounces it up**. In one frame mid-air it's above 4 cm, so it counts as a success.
 
 </details>
 
-所以我们写了更严格的规则：方块被抬高 **并且** 夹爪确实夹着它，**连续 10 步**都满足才算成功。
-代码很短，打开 `src/newbody/evaluation/success.py` 读一下（只有 20 行）。
+So we wrote a stricter rule: the cube must be lifted **and** actually held by the gripper, for **10 consecutive steps**.
+The code is short. Open `src/newbody/evaluation/success.py` and read it (only about 20 lines).
 
-> **为什么要较真？** 第 5 章做 RL 时，机器人会想尽办法让分数变高。
-> 如果规则有漏洞，它就会学会钻漏洞（比如学会把方块拍飞），而不是学会抓。
-> 这叫 **reward hacking**，是 RL 里最常见的坑之一。
+> **Why be so strict?** When we do RL in Chapter 5, the robot will try anything to raise its score.
+> If the rule has a loophole, it will learn to exploit the loophole (for example, learn to flick the cube up) instead of learning to grasp.
+> This is called **reward hacking**, and it's one of the most common pitfalls in RL.
 
 ---
 
-## Step 8：一个真实的 bug 故事
+## Step 8: A real bug story
 
-这是我们在做这一章时真实遇到的问题，也是这章最有价值的一课。
+This is a problem we actually hit while building this chapter, and it's the most valuable lesson in it.
 
-**现象**：老师第一次跑，成功率只有 25%，而且**没有任何报错**。
+**Symptom**: the teacher's first run had only 25% success, and **no error at all**.
 
-**排查过程**（每一步都只做一个小实验）：
+**Investigation** (each step is just one small experiment):
 
-1. 看失败的录像和日志：夹爪闭合了，但没夹住方块。
-2. 方块每次的朝向是随机的。按朝向分组统计成功率：**只有方块转了约 45° 时才能成功**。
-3. 固定方块朝向再测：0° 时 0/10，45° 时 9/10。现象稳定复现。
-4. 检查物理接触：0° 时，手指**根本没碰到方块**。
-5. 测量手指完全闭合后的间距：**6.3 cm**！方块只有 4 cm 宽，当然夹不住。只有转 45° 时，方块的对角线（约 6 cm）才刚好被碰到。
-6. 换一个 MuJoCo 版本（3.9.0 → 3.3.7）：间距变成 1.5 cm，成功率 100%。
+1. Watched the failed videos and logs: the gripper closed but didn't hold the cube.
+2. The cube's orientation is random each time. Grouped success by orientation: **it only succeeded when the cube was rotated about 45°**.
+3. Fixed the cube orientation and tested again: 0° gave 0/10, 45° gave 9/10. The effect reproduced reliably.
+4. Checked physical contacts: at 0°, the fingers **never touched the cube at all**.
+5. Measured the finger gap when fully closed: **6.3 cm**! The cube is only 4 cm wide, so of course it can't be held. Only at 45° does the cube's diagonal (about 6 cm) just reach the fingers.
+6. Switched the MuJoCo version (3.9.0 → 3.3.7): the gap became 1.5 cm and success went to 100%.
 
-**结论**：新版物理引擎和这个夹爪模型不兼容，**但它不报错，只是悄悄让机器人变笨**。
+**Conclusion**: the newer physics engine is incompatible with this gripper model, **but it raises no error; it just quietly makes the robot worse**.
 
-### 动手
+### Do it
 
-我们把这个检查写成了一个测试，以后谁升级了 MuJoCo 都会被拦住：
+We turned this check into a test, so anyone who upgrades MuJoCo later gets stopped:
 
 ```bash
 uv run pytest -k gripper -v
 ```
 
-打开 `tests/test_env.py`，找到 `test_gripper_closes_fully`，读懂它在测什么。
+Open `tests/test_env.py`, find `test_gripper_closes_fully`, and make sure you understand what it tests.
 
-### 想一想
+### Think about it
 
-**Q11.** 如果当时没去查，而是直接拿这个 25% 的老师录数据、训练 VLA，会发生什么？
+**Q11.** What would have happened if we hadn't investigated, and had used this 25% teacher to record data and train the VLA?
 
-<details><summary>展开答案</summary>
+<details><summary>Show answer</summary>
 
-最糟的情况：VLA 训练完成功率很低，我们会以为是"VLA 不行"或"数据不够"，然后花大量 GPU 时间调模型。
-其实问题出在最底层的物理仿真上。
+Worst case: after training, the VLA has a low success rate. We'd think "the VLA is bad" or "there isn't enough data", and spend lots of GPU time tuning the model.
+In fact the problem was at the very bottom layer, the physics simulation.
 
-**教训：成功率低时，先用最小的实验确定问题出在哪一层（环境？控制器？策略？），再动手改。**
+**Lesson: when the success rate is low, first use the smallest possible experiments to find which layer the problem is in (environment? controller? policy?), and only then change things.**
 
 </details>
 
 ---
 
-## Step 9：你的小研究：一个参数会怎样影响老师？
+## Step 9: Your mini research: how does one parameter affect the teacher?
 
-这是这章的最后一个练习，像做一个迷你研究：**先提出假设，再做实验验证**。
+This is the last exercise of the chapter, done like a mini research project: **state a hypothesis first, then test it with an experiment**.
 
-选下面**一个**参数：
+Pick **one** of these parameters:
 
-- `approach_height`：在方块上方多高的地方停下再下降（默认 0.10 m）
-- `action_gain`：老师的 P 控制器放大倍数（默认 1.0，就是你 Step 5 的 GAIN）
+- `approach_height`: how high above the cube to stop before descending (default 0.10 m)
+- `action_gain`: the teacher's P-controller gain (default 1.0, which is your GAIN from Step 5)
 
-### 1. 先写下你的假设
+### 1. Write down your hypothesis first
 
-在 `playground/step9_notes.md` 里写：
+In `playground/step9_notes.md`, write:
 
 ```
-我选的参数：
-我要试的值：
-我预测成功率会：
-我预测每局步数会：
-理由：
+Parameter I chose:
+Values I will try:
+I predict the success rate will:
+I predict the episode length will:
+Reasoning:
 ```
 
-### 2. 做实验
+### 2. Run the experiment
 
-`--set` 可以临时修改老师的参数。例如：
+`--set` temporarily changes the teacher's parameters. For example:
 
 ```bash
 uv run python scripts/run_expert.py --episodes 30 --cube-xy-range 0.10 --videos 1 --set approach_height=0.02 --name ex_ah002
 uv run python scripts/run_expert.py --episodes 30 --cube-xy-range 0.10 --videos 1 --set action_gain=0.3 --name ex_gain03
 ```
 
-### 3. 看结果
+### 3. Look at the results
 
-- 最后一行会打印成功率
-- `results/expert/<name>/episodes.csv`：每一局的长度（`length`）、失败原因（`fail_reason`，失败时会显示卡在哪个阶段）
-- 失败的局会自动保存视频，打开看看到底发生了什么
+- The last line prints the success rate
+- `results/expert/<name>/episodes.csv`: each episode's length (`length`) and failure reason (`fail_reason`, which shows the stage it got stuck in)
+- Failed episodes automatically save a video; open it to see what actually happened
 
-### 4. 写结论
+### 4. Write your conclusion
 
-预测对了吗？如果不对，你觉得原因是什么？写在 `step9_notes.md` 里，然后发给我，我们一起讨论。
+Was your prediction right? If not, what do you think the reason is? Write it in `step9_notes.md` and send it to me; we'll discuss it together.
 
 ---
 
-## 面试练习
+## Interview practice
 
-先**用英语**口头或书面回答，再发给我，我会指出哪里不准确。每题 3 – 5 句话即可。
+Answer **in English**, out loud or in writing, then send your answers to me and I'll point out anything inaccurate. 3 – 5 sentences per question is enough.
 
 1. *What is the difference between the policy and the controller in your setup? What does one action actually do?*
 2. *Your scripted expert reads the exact cube position. Why is that allowed for the expert, but not for the VLA?*
 3. *Your expert's success rate was 25% at first. How did you find the cause?*
 
-## 本章概念小结
+## Concept recap
 
-只有在你做完上面的步骤之后，这些词才有意义：
+These terms only mean something once you've done the steps above:
 
-- **Observation / Action**：机器人知道什么 / 机器人能做什么（Step 1, 2）
-- **Proprioception**：本体感觉，关节角度、末端位置（Step 1）
-- **Privileged information**：仿真里有、现实里没有的信息（Step 1）
-- **Policy vs Controller**：大脑决定去哪，小脑负责怎么用力（Step 2）
-- **Joint space vs Cartesian space**：控制关节角度 vs 控制末端位置（Step 2）
-- **Control frequency vs simulation frequency**：20 Hz vs 500 Hz（Step 3）
-- **P controller / closed-loop / open-loop**（Step 5）
-- **FSM**：有限状态机（Step 6）
-- **Success condition / reward hacking**（Step 7）
+- **Observation / Action**: what the robot knows / what the robot can do (Steps 1, 2)
+- **Proprioception**: the robot's sense of its own body, e.g. joint angles and end-effector position (Step 1)
+- **Privileged information**: information that exists in simulation but not in reality (Step 1)
+- **Policy vs Controller**: the brain decides where to go; the cerebellum decides how hard to push (Step 2)
+- **Joint space vs Cartesian space**: controlling joint angles vs controlling the end-effector position (Step 2)
+- **Control frequency vs simulation frequency**: 20 Hz vs 500 Hz (Step 3)
+- **P controller / closed-loop / open-loop** (Step 5)
+- **FSM**: Finite State Machine (Step 6)
+- **Success condition / reward hacking** (Step 7)

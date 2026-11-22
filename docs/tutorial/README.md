@@ -1,34 +1,34 @@
-# 动手教程：从零做一个 VLA + RL 机器人项目
+# Hands-on Tutorial: Building a VLA + RL Robot Project from Scratch
 
-这套教程是给你**边做边学**的。每一章都是同一个节奏：
+This tutorial is meant to be **followed while you build**. Every chapter uses the same rhythm:
 
-1. **动手**：你自己敲代码、运行命令
-2. **先预测**：运行前写下你觉得会发生什么
-3. **观察**：看输出、看视频
-4. **讲解**：我解释为什么会这样
-5. **想一想**：几个问题，答案折叠起来，先自己想再展开
+1. **Do it**: type the code and run the commands yourself
+2. **Predict first**: before running, write down what you expect to happen
+3. **Observe**: look at the output or the video
+4. **Explanation**: why it happened
+5. **Think about it**: a few questions; answers are folded, so think first, then expand
 
-你自己写的代码都放在 `playground/` 目录里。项目的正式代码在 `src/`，教程里会告诉你什么时候去读它。
+Your own code goes into `playground/`. The project's real code lives in `src/`; the tutorial tells you when to read it.
 
-## 整个项目的地图
+## The project map
 
-我们要做的事，用一句话说：
+What we are building, in one sentence:
 
-> 让一个"见过很多机器人"的大模型（SmolVLA），学会控制一台它**从没见过**的机械臂（Kinova3），
-> 然后再用强化学习（RL）帮它改掉小毛病。
+> Teach a large model that has "seen many robots" (SmolVLA) to control a robot arm it has **never seen** (Kinova3),
+> then use reinforcement learning (RL) to fix its small mistakes.
 
-为此需要按顺序走完这几步，每一步都依赖前一步：
+The steps come in this order, and each one depends on the previous one:
 
-| 章 | 你会做什么 | 学到什么 | 面试时能讲 |
+| Ch. | What you will do | What you learn | What you can explain in an interview |
 |---|---|---|---|
-| 1 | 让机械臂动起来，写一个自动抓方块的"老师" | 仿真、控制、动作空间 | 数据是怎么来的 |
-| 2 | 把老师的动作录成数据集 | 模仿学习、数据格式 | Behavior Cloning |
-| 3 | 用数据微调 SmolVLA（远程 GPU） | VLA 结构、Flow Matching、SFT | VLA 怎么输出动作 |
-| 4 | 让 VLA 自己去抓，测成功率 | 闭环评估、误差累积 | 为什么 loss 低不等于会做 |
-| 5 | 冻结 VLA，训练一个小 RL 网络来修正它 | SAC、Q 函数、reward 设计 | Residual RL |
-| 6 | 做对比实验 | 实验设计、统计 | 你的结论可信吗 |
-| 7 | 整理成作品集，模拟面试 | 用英语讲清整个项目 | 全部 |
+| 1 | Make the arm move; write a "teacher" that grasps the cube automatically | simulation, control, action space | where the data comes from |
+| 2 | Record the teacher's behavior as a dataset | imitation learning, data formats | Behavior Cloning |
+| 3 | Fine-tune SmolVLA on that data (remote GPU) | VLA architecture, Flow Matching, SFT | how a VLA outputs actions |
+| 4 | Let the VLA grasp on its own and measure success rate | closed-loop evaluation, compounding error | why low loss does not mean the task is solved |
+| 5 | Freeze the VLA and train a small RL network to correct it | SAC, Q-functions, reward design | Residual RL |
+| 6 | Run comparison experiments | experimental design, statistics | is your conclusion trustworthy |
+| 7 | Turn it into a portfolio; mock interview | explaining the whole project in English | everything |
 
-## 章节
+## Chapters
 
-- [第 1 章：让机械臂动起来，并写一个自动抓取的老师](ch01_env_and_expert.md)
+- [Chapter 1: Make the arm move, and write a teacher that grasps automatically](ch01_env_and_expert.md)

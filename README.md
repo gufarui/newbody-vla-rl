@@ -7,7 +7,7 @@ SFT of `lerobot/smolvla_base` → **frozen VLA + residual SAC** → controlled e
 
 Status: Milestone 0 (environment) and Milestone 1 (scripted expert) done. See [docs/research_log.md](docs/research_log.md).
 
-Hands-on tutorial (Chinese, follow along step by step): [docs/tutorial/](docs/tutorial/README.md)
+Hands-on tutorial (follow along step by step): [docs/tutorial/](docs/tutorial/README.md)
 
 ## Install
 
