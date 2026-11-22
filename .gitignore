@@ -13,3 +13,4 @@ __pycache__/
 *.pt
 *.safetensors
 MUJOCO_LOG.TXT
+/logs_server/

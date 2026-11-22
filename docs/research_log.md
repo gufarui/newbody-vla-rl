@@ -122,3 +122,17 @@ Strict success: can inside the target compartment AND not grasped, for 10 consec
   while closed-loop success plateaued -> training stopped at ~16.4k by user agreement; chosen checkpoint **10k**.
 - Final test eval first ran at ~80 s/episode: torch defaulted to 128 CPU threads on an 18-core container quota
   (heavy cgroup throttling). Restarted with OMP_NUM_THREADS=8 -> ~8 s/episode. Partial results of the slow run discarded.
+
+### Milestone 2 result — SFT-only baseline (checkpoint 10k), TEST seeds 200000-200199, full source bin
+
+| actions executed per chunk | success | 95% CI (Wilson) | inside training region | outside | failure modes |
+|---|---|---|---|---|---|
+| **10** | **120/200 (60%)** | 0.53-0.67 | 43/44 (98%) | 77/156 (49%) | never_grasped 69, dropped 9, wrong_compartment 2 |
+| 50 | 60/200 (30%) | 0.24-0.37 | 40/44 (91%) | 20/156 (13%) | never_grasped 132, dropped 5, wrong_compartment 3 |
+
+- Chunk inference latency on the 4090: ~205 ms mean (10 flow steps, 2 cameras), so one chunk per 10 steps (0.5 s) fits.
+- Typical never_grasped (video seed 200003): gripper descends with a few-cm horizontal offset, hits the can and knocks it
+  over; a lying can never appears in the demos, so no recovery. => distribution shift outside the demo region;
+  a residual that corrects xy during approach/descent has a concrete job in Milestone 3.
+- Long open-loop execution (50/chunk) halves success, mostly outside the training region (13%).
+- SFT-only baseline for Milestone 4 = 10k checkpoint, 10 actions/chunk, full bin: 60% [53, 67].
