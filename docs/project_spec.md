@@ -59,3 +59,7 @@ The stock robosuite `PickPlaceCan` does not work as-is for Kinova3 with a vertic
 - Milestone 4: consider ~200 eval episodes per method (100 episodes cannot resolve <10-point differences).
 - Be explicit in the report: SmolVLA was pretrained on 6-D joint actions + 3 cameras; our 4-D Cartesian actions + 2
   cameras mean the action head is largely re-learned from our demos; transfer is mainly visual/language.
+- **Hard setting for RL and final evaluation (2026-11-23):** SFT data stays in the central can region; residual RL
+  training and the final SFT-only vs SFT+RL comparison use the **full source bin** (can_x ±0.145, can_y ±0.195).
+  Evidence: 5k SFT checkpoint 20/20 in-region but 11/32 outside it; expert 59/60 on the full bin.
+  Execution: 10 actions per chunk (50 per chunk: 16/20 even in-region). SFT checkpoint chosen on val seeds (full bin).
