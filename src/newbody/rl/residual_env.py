@@ -71,6 +71,8 @@ class ResidualChunkEnv:
         self._obs = reset_with_seed(self.env, seed)
         self.checker.reset()
         self._k, self._t = 0, 0
+        self.was_grasped, self.dropped = False, False  # per-episode bookkeeping for failure analysis
+        self._can0 = can_pos(self.env).copy()
         rel = can_pos(self.env)[:2] - self.bin1_xy
         self.inside_demo_region = bool(abs(rel[0]) <= DEMO_REGION_HALF[0] and abs(rel[1]) <= DEMO_REGION_HALF[1])
         self._plan()
@@ -89,6 +91,11 @@ class ResidualChunkEnv:
             self._obs, _, _, _ = self.env.step(a)
             executed.append(a)
             self._t += 1
+            g = is_grasping(self.env)
+            if self.was_grasped and not g and can_pos(self.env)[2] > self._can0[2] + 0.03 \
+                    and all(self.env.not_in_bin(can_pos(self.env), i) for i in range(4)):
+                self.dropped = True  # let go while lifted and not over bin2
+            self.was_grasped |= g
             if self.checker.update(self.env):
                 success = True
                 reward += c.success_reward
