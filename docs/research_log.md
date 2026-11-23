@@ -158,3 +158,15 @@ Strict success: can inside the target compartment AND not grasped, for 10 consec
   **identical executed actions (max diff 0.0)** on 2 full episodes. The RL starting point is exactly the baseline.
 - 6-episode smoke run: everything runs, VLA weight hash unchanged, resume works. Observed |δ| rising 0.26 -> 0.55 in
   6 episodes with initial α = 0.05 (entropy bonus dominates while Q is still flat) -> initial α set to 0.01.
+
+## 2026-11-24 — Milestone 3 training run rl_v1 (RTX 4090 D)
+
+- GPU smoke: 0.36 s per decision (VLA chunk + 10 sim steps + 4 SAC updates). Without critic warm-up the actor
+  drifted to mean |δ| ~0.6 within 8 episodes -> added `actor_warmup_updates: 2000` (|δ| then stays ~0.2 = noise).
+- RL-val (seeds 450000-450039, deterministic actor) during training: ep0 (=SFT) 29/40, ep250 32/40, **ep500 34/40**,
+  ep750 23/40 (inside demo region 9/9 throughout).
+- Training-time success per 100 episodes: 55, 66, 78, 79, 76, 68, 65, 69% (ep 0-763); mean |δ| 0.31 -> 0.37;
+  critic loss 0.0005 (ep 145-445) -> 0.005 (ep 763); Q mean peaked 0.65 (ep 645). Interpretation: off-policy
+  degradation (critic error grows, actor exploits it with larger corrections; UTD 4 makes this easier).
+- Decision (user, 2026-11-24): stop at ep 763 (~1 h 45 min); select a checkpoint by RL-val among ep 249-599
+  (rule fixed beforehand: highest val success, tie -> earlier); then one final test on test seeds 200000-200199.
