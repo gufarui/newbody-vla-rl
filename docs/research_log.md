@@ -187,3 +187,12 @@ Strict success: can inside the target compartment AND not grasped, for 10 consec
 - SFT checkpoint file sha256 unchanged on the server (7aa33326...); the VLA is never written. rl_v1 was interrupted,
   so its run_end.json (in-process weight hash) was not produced; smoke runs verified the in-process hash.
 - Cost of the M3 GPU session ≈ 2.5 h ≈ ¥5. Instance shut down.
+
+## 2026-11-24 — Milestone 4 analysis (local)
+
+- Figures: docs/figures/m4_success.png, m4_learning_curve.png, m4_outcome_map.png (scripts/make_figures.py);
+  comparison videos results/videos/compare_seed2000{03,08}.mp4 (local reruns reproduced SFT fail / RL success).
+- Success by start band (SFT -> RL): y<-11 cm 67->90%, |y|<7.5 76->84%, y>=11 cm 16->29%; x>=8 cm 13->45%, x<-8 cm 32->54%.
+- 27/53 RL failures at y>=11 cm (near the wall facing the target bin), mostly never_grasped; 59% of those hit
+  max|δ|>=0.95 vs 0% of successes there and 17% elsewhere -> residual bound likely limiting (untested).
+- RL broke 4 scenes (all tipped; 3 inside the demo region). Report: docs/technical_report.md.
