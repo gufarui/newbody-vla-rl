@@ -10,6 +10,15 @@ SFT of `lerobot/smolvla_base` → **frozen VLA + RLT-inspired residual SAC** (VL
 
 ![](docs/figures/m4_success.png)
 
+**Same scene, same frozen VLA** (can outside the demonstrated region, test seed 200003). Left: SFT only, the gripper
+comes down slightly off and knocks the can over. Right: with the residual SAC correction, the can is grasped and
+placed in the target compartment.
+
+![SFT only vs SFT + residual SAC](docs/media/compare_seed200003.gif)
+
+Full-resolution videos: [seed 200003](docs/media/compare_seed200003.mp4), [seed 200008](docs/media/compare_seed200008.mp4)
+*(illustrative reruns of scenes where only the RL policy succeeded in the test; the statistic is the 200-scene comparison above).*
+
 - Technical report: [docs/technical_report.md](docs/technical_report.md)
 - Scope and decisions: [docs/project_spec.md](docs/project_spec.md), RL design: [docs/m3_design.md](docs/m3_design.md)
 - Experiment log with all measurements: [docs/research_log.md](docs/research_log.md)
