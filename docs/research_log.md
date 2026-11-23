@@ -170,3 +170,20 @@ Strict success: can inside the target compartment AND not grasped, for 10 consec
   degradation (critic error grows, actor exploits it with larger corrections; UTD 4 makes this easier).
 - Decision (user, 2026-11-24): stop at ep 763 (~1 h 45 min); select a checkpoint by RL-val among ep 249-599
   (rule fixed beforehand: highest val success, tie -> earlier); then one final test on test seeds 200000-200199.
+- RL-val checkpoint selection (40 eps each): ep249 32, ep349 31, ep399 33, ep449 29, **ep499 34**, ep549 29, ep599 27
+  -> selected ep00499.pt by the pre-registered rule (note: max of 7 noisy evals -> val number optimistic).
+
+### Milestone 3 result — TEST seeds 200000-200199, full bin, 10 actions/chunk, paired with the SFT baseline
+
+| policy | success | 95% CI | inside demo region | outside | failure modes |
+|---|---|---|---|---|---|
+| SFT only (10k) | 120/200 (60.0%) | 0.53-0.67 | 43/44 | 77/156 (49%, CI 0.42-0.57) | never_grasped* 69, dropped 9, wrong_compartment 2 |
+| **SFT + residual SAC (ep499)** | **147/200 (73.5%)** | 0.67-0.79 | 41/44 | **106/156 (68%, CI 0.60-0.75)** | never_grasped 35, tipped 14, dropped 2, wrong_compartment 2 |
+
+*the baseline classifier had no separate "tipped" label; tipped cans were counted as never_grasped.
+- Paired on identical seeds: only-RL successes 31, only-baseline 4 -> **McNemar exact p = 3.5e-6**.
+- Mean |δ| = 0.30 (≈ 3 mm target offset per step on average). Gains are almost entirely outside the demo region;
+  inside it is 41/44 vs 43/44 (difference of 2 episodes, not significant).
+- SFT checkpoint file sha256 unchanged on the server (7aa33326...); the VLA is never written. rl_v1 was interrupted,
+  so its run_end.json (in-process weight hash) was not produced; smoke runs verified the in-process hash.
+- Cost of the M3 GPU session ≈ 2.5 h ≈ ¥5. Instance shut down.
