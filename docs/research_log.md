@@ -146,3 +146,15 @@ Strict success: can inside the target compartment AND not grasped, for 10 consec
 - Linear probe at pre-grasp decision points during VLA rollouts (n=277), target = can xy minus gripper xy:
   all-token mean R2 0.67/0.87 (2.8/4.8 cm), **front-cam tokens 0.81/0.96 (2.1/2.7 cm)**, wrist-cam 0.61/0.73,
   robot state 0.07/0.42. -> actor features = per-camera means concatenated (1920-D).
+
+## 2026-11-23 — Milestone 3 implementation + local checks (Mac MPS, free)
+
+- `src/newbody/rl/residual_env.py` (chunk-level residual env), `src/newbody/rl/sac.py` (CleanRL-based SAC,
+  asymmetric critic, near-zero initial actor), `scripts/train_residual_sac.py` (logs, evals, checkpoint + replay resume).
+- Unit tests with a stub VLA (tests/test_rl.py, 6 tests): δ=0 executes the reference exactly; ±λ scaling and clipping;
+  gripper never modified; penalty; truncation vs termination; actor obs has no privileged keys; tipped-can detection;
+  initial deterministic |δ| < 0.05, exploration std ≈ 0.3; finite SAC updates.
+- Real VLA, `scripts/check_residual_zero.py`: residual env with δ=0 vs the SFT eval path, same seeds ->
+  **identical executed actions (max diff 0.0)** on 2 full episodes. The RL starting point is exactly the baseline.
+- 6-episode smoke run: everything runs, VLA weight hash unchanged, resume works. Observed |δ| rising 0.26 -> 0.55 in
+  6 episodes with initial α = 0.05 (entropy bonus dominates while Q is still flat) -> initial α set to 0.01.

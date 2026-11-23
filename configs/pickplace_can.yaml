@@ -37,3 +37,36 @@ data:
     train: {seed_start: 0, episodes: 50}
     val: {seed_start: 100000, episodes: 10}
     test: {seed_start: 200000}      # closed-loop evaluation only, never recorded
+
+# Milestone 3: residual SAC on the frozen SFT VLA (design: docs/m3_design.md)
+rl:
+  vla_checkpoint: outputs/sft_v1/checkpoints/010000/pretrained_model
+  can_x_range: [-0.145, 0.145]      # full source bin (same distribution as the final test)
+  can_y_range: [-0.195, 0.195]
+  train_seed_start: 400000          # disjoint from demos (0+), val (100000+), test (200000+)
+  val_seed_start: 450000            # RL checkpoint selection only
+  val_episodes: 40
+  total_episodes: 1500
+  learning_starts: 300              # transitions collected with the initial (≈ SFT) policy before updates
+  updates_per_transition: 4         # transitions are expensive (1 VLA call + 10 sim steps); updates are cheap
+  buffer_size: 100000
+  eval_every_episodes: 250
+  save_every_episodes: 50
+  residual:
+    chunk_steps: 10
+    residual_scale: 0.2
+    residual_penalty: 0.005
+    success_reward: 1.0
+    max_decisions: 30
+    tip_cos_threshold: 0.5
+  sac:
+    feature_proj: 128
+    hidden: 256
+    gamma: 0.98
+    tau: 0.005
+    policy_lr: 0.0003
+    q_lr: 0.001
+    batch_size: 256
+    policy_frequency: 2
+    init_log_std: -1.2
+    alpha: 0.01                     # initial entropy temperature (auto-tuned); 0.05 made early exploration dominate
