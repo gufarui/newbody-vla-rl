@@ -93,3 +93,19 @@ def test_sac_initial_policy_is_near_zero_and_updates_are_finite():
         logs = sac.update(buf)
     assert all(np.isfinite(v) for v in logs.values())
     assert buf.o["features"].dtype == np.float16
+
+
+def test_actor_frozen_during_critic_warmup():
+    dims = {"features": 1920, "ref": 40, "state": 5, "time": 1}
+    sac = SAC(dims, 3, 11, SACConfig(batch_size=16, actor_warmup_updates=5), "cpu")
+    before = [p.clone() for p in sac.actor.parameters()]
+    buf = ReplayBuffer(64, dims, 3, 11)
+    o = {k: np.random.randn(d).astype(np.float32) for k, d in dims.items()}
+    for _ in range(32):
+        buf.add(o, np.zeros(11), np.random.uniform(-1, 1, 3), 1.0, o, np.zeros(11), False)
+    for _ in range(5):
+        sac.update(buf)
+    assert all(torch.equal(a, b) for a, b in zip(before, sac.actor.parameters()))
+    for _ in range(2):
+        sac.update(buf)
+    assert not all(torch.equal(a, b) for a, b in zip(before, sac.actor.parameters()))

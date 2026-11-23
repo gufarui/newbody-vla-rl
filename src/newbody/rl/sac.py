@@ -33,7 +33,8 @@ class SACConfig:
     policy_frequency: int = 2
     init_log_std: float = -1.2     # initial exploration std ≈ 0.3 in δ units (≈ 3 mm/step target offset)
     autotune: bool = True
-    alpha: float = 0.05            # used only if autotune is False
+    alpha: float = 0.05            # initial temperature (auto-tuned if autotune)
+    actor_warmup_updates: int = 0  # critic-only updates before the actor may move (actor stays ≈ SFT policy)
 
 
 class ObsEncoder(nn.Module):
@@ -163,7 +164,7 @@ class SAC:
         self.q_opt.step()
         logs = dict(q_loss=q_loss.item(), q1_mean=q1.mean().item(), target_mean=target.mean().item())
 
-        if self.updates % c.policy_frequency == 0:
+        if self.updates >= c.actor_warmup_updates and self.updates % c.policy_frequency == 0:
             for _ in range(c.policy_frequency):  # CleanRL: compensate for the delay
                 pi, logp, _ = self.actor.sample(o)
                 q_pi = torch.min(self.q1(o, p, pi), self.q2(o, p, pi))

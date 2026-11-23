@@ -70,3 +70,4 @@ rl:
     policy_frequency: 2
     init_log_std: -1.2
     alpha: 0.01                     # initial entropy temperature (auto-tuned); 0.05 made early exploration dominate
+    actor_warmup_updates: 2000      # critic-only first (~500 transitions): actor drifted to |δ|~0.6 on an untrained critic
