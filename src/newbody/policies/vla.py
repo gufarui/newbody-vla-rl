@@ -62,6 +62,58 @@ class VLAController:
         out["task"] = [self.task]
         return out
 
+    # ---------------------------------------------------------------- features for residual RL
+    def enable_feature_capture(self):
+        """Capture pooled VLM prefix features from the SAME forward pass that generates actions.
+
+        SmolVLA runs the VLM once over the prefix (64+64 image tokens, 48 language tokens, 1 state
+        token), caches it, then denoises with the action expert. The VLM's prefix hidden states are
+        normally discarded; we keep the mean of each camera's 64 image tokens, concatenated (1920-D).
+        No extra forward pass, no weight change.
+        """
+        model = self.policy.model
+        vlm = model.vlm_with_expert
+        orig_embed_prefix = type(model).embed_prefix
+        orig_forward = type(vlm).forward
+        self._pad_mask = None
+        self.last_features = None
+        self.feature_calls = 0
+
+        def embed_prefix(*args, **kwargs):
+            embs, pad, att = orig_embed_prefix(model, *args, **kwargs)
+            self._pad_mask = pad
+            return embs, pad, att
+
+        def forward(*args, inputs_embeds=None, **kwargs):
+            out, cache = orig_forward(vlm, *args, inputs_embeds=inputs_embeds, **kwargs)
+            if inputs_embeds is not None and inputs_embeds[1] is None:  # prefix-only pass
+                h = out[0].float()  # (B, L=177, 960): [64 front-cam | 64 wrist-cam | 48 language | 1 state]
+                m = self._pad_mask[:, : h.shape[1]].unsqueeze(-1).float()
+                # Per-camera mean pooling (measured: front-cam tokens predict the can-gripper xy offset with
+                # R2 0.81/0.96 vs 0.67/0.87 for a mean over all tokens; results/probe_vla_features_rollout.json).
+                self.last_features = torch.cat([h[:, :64].mean(1), h[:, 64:128].mean(1)], dim=-1).detach()  # (B, 1920)
+                self.last_hidden, self.last_mask = h.detach(), m.detach()  # for analysis only
+                self.feature_calls += 1
+            return out, cache
+
+        model.embed_prefix = embed_prefix
+        vlm.forward = forward
+
+    @torch.inference_mode()
+    def predict_chunk(self, obs: dict, n_steps: int) -> tuple[np.ndarray, np.ndarray]:
+        """One VLA call: returns (reference chunk (n_steps, 4) in env units, features (1920,)).
+        Gripper column is binarized by sign, xyz clipped to [-1, 1]."""
+        batch = self.pre(self._observation(obs))
+        t0 = time.perf_counter()
+        chunk = self.policy.predict_action_chunk(batch)[:, :n_steps]  # (1, n, 4) normalized
+        chunk = self.post(chunk).squeeze(0).float().cpu().numpy()
+        if self.device == "cuda":
+            torch.cuda.synchronize()
+        self.chunk_times.append(time.perf_counter() - t0)
+        ref = np.clip(chunk, -1.0, 1.0).astype(np.float32)
+        ref[:, 3] = np.where(chunk[:, 3] > 0, 1.0, -1.0)
+        return ref, self.last_features.squeeze(0).cpu().numpy()
+
     @torch.inference_mode()
     def act(self, obs: dict) -> tuple[np.ndarray, np.ndarray]:
         """Returns (env_action, raw_vla_action). Gripper is binarized by sign (+1 close, -1 open)."""

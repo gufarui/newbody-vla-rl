@@ -136,3 +136,13 @@ Strict success: can inside the target compartment AND not grasped, for 10 consec
   a residual that corrects xy during approach/descent has a concrete job in Milestone 3.
 - Long open-loop execution (50/chunk) halves success, mostly outside the training region (13%).
 - SFT-only baseline for Milestone 4 = 10k checkpoint, 10 actions/chunk, full bin: 60% [53, 67].
+
+## 2026-11-23 — Milestone 3 pre-checks: frozen-VLA feature interface (local, Mac MPS)
+
+- Hook on SmolVLA's prefix-only VLM pass (normally discarded hidden states): 1 VLM pass per chunk, identical obs ->
+  identical features (max diff 0.0), VLA weights hash unchanged, chunk latency ~320 ms on MPS.
+- Linear probe (ridge, 5-fold CV), initial scenes, full bin, n=120: can xy from mean of all tokens R2 0.60/0.70
+  (RMSE 4.1/5.3 cm); from robot state R2 ~0.
+- Linear probe at pre-grasp decision points during VLA rollouts (n=277), target = can xy minus gripper xy:
+  all-token mean R2 0.67/0.87 (2.8/4.8 cm), **front-cam tokens 0.81/0.96 (2.1/2.7 cm)**, wrist-cam 0.61/0.73,
+  robot state 0.07/0.42. -> actor features = per-camera means concatenated (1920-D).

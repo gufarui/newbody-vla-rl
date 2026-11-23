@@ -19,8 +19,10 @@ Baseline it must beat (test seeds, full bin, 10 actions/chunk): **120/200 = 60%*
 
 ## Actor observation (deployable only — no privileged state)
 
-1. Frozen VLA features: pooled VLM prefix hidden states (images + instruction + state), from the same forward pass
-   that produces the reference chunk → small projection.
+1. Frozen VLA features: VLM prefix hidden states from the same forward pass that produces the reference chunk
+   (1 pass/chunk, verified), **mean-pooled per camera** (front 64 tokens, wrist 64 tokens) and concatenated -> 1920-D
+   -> small learned projection. Evidence (linear probe, 277 pre-grasp decision points): can-minus-gripper xy offset
+   R2 0.81/0.96 from front-cam tokens vs 0.67/0.87 from a mean over all tokens and 0.07/0.42 from robot state.
 2. The VLA reference chunk for these 10 steps (10 × 4).
 3. Proprioceptive state (5-D).
 
