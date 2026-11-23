@@ -76,7 +76,7 @@ def main():
     sac = SAC(dims, ResidualChunkEnv.ACT_DIM, pr.size, SACConfig(**rl["sac"]), vla.device)
     ck_dir = ROOT / "outputs" / args.run / "checkpoints"
     ck_name = args.checkpoint or (ck_dir / "latest.txt").read_text().strip()
-    sac.load_state_dict(torch.load(ck_dir / ck_name, weights_only=False)["sac"])
+    sac.load_state_dict(torch.load(ck_dir / ck_name, weights_only=False, map_location="cpu")["sac"])
 
     rows, saved, t0 = [], Counter(), time.time()
     for i in range(args.episodes):

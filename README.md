@@ -2,13 +2,19 @@
 
 Lightweight RL post-training for cross-embodiment VLA adaptation, simulation only.
 
-Pipeline: scripted expert on a simulated **Kinova3** (robosuite **PickPlaceCan**) → LeRobot dataset →
-SFT of `lerobot/smolvla_base` → **frozen VLA + RLT-inspired residual SAC** → SFT-only vs SFT+RL.
+Pipeline: scripted expert on a simulated **Kinova3** (robosuite **PickPlaceCan**) → 50-demo LeRobot dataset →
+SFT of `lerobot/smolvla_base` → **frozen VLA + RLT-inspired residual SAC** (VLA features + reference chunk).
 
-- Scope and decisions: [docs/project_spec.md](docs/project_spec.md)
-- Experiment log: [docs/research_log.md](docs/research_log.md)
+**Result** (200 paired test scenes, can anywhere in the source bin): SFT only **60%** → SFT + residual SAC **73.5%**
+(31 scenes fixed vs 4 broken, McNemar p = 3.5·10⁻⁶); outside the demonstrated region 49% → 68%.
 
-Status: Milestone 1 (simulation, scripted expert, demo dataset) done; Milestone 2 (SmolVLA SFT) training.
+![](docs/figures/m4_success.png)
+
+- Technical report: [docs/technical_report.md](docs/technical_report.md)
+- Scope and decisions: [docs/project_spec.md](docs/project_spec.md), RL design: [docs/m3_design.md](docs/m3_design.md)
+- Experiment log with all measurements: [docs/research_log.md](docs/research_log.md)
+
+Status: all milestones done (simulation + demos, SmolVLA SFT, residual SAC, evaluation).
 
 ## Install
 
@@ -44,6 +50,8 @@ src/newbody/env/         Kinova3 PickPlaceCan factory, seeded resets, image help
 src/newbody/expert/      FSM scripted expert (privileged can + target state)
 src/newbody/evaluation/  stricter place-success check
 src/newbody/data/        dataset schema + LeRobot recorder
+src/newbody/policies/    frozen SmolVLA controller + feature hook
+src/newbody/rl/          chunk-level residual env, SAC with asymmetric critic
 scripts/                 CLI entry points
 tests/                   smoke + regression tests
 docs/                    spec, research log, GPU plan, figures

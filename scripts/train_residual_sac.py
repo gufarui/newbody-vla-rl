@@ -87,7 +87,7 @@ def save_ckpt(out: Path, sac: SAC, buf: ReplayBuffer, episode: int):
 
 def load_ckpt(out: Path, sac: SAC, buf: ReplayBuffer) -> int:
     ck = out / "checkpoints"
-    s = torch.load(ck / (ck / "latest.txt").read_text().strip(), weights_only=False)
+    s = torch.load(ck / (ck / "latest.txt").read_text().strip(), weights_only=False, map_location="cpu")
     sac.load_state_dict(s["sac"])
     np.random.set_state(s["np_rng"])
     torch.set_rng_state(s["torch_rng"])

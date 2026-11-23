@@ -46,6 +46,8 @@ class ResidualChunkEnv:
         self.env, self.vla, self.cfg = env, vla, cfg
         self.checker = PlaceSuccess(**success_cfg)
         self.bin1_xy = np.asarray(bin1_xy[:2], dtype=float)
+        self.record_camera = None  # set to a camera name to keep every env-step frame in self.frames (videos)
+        self.frames: list = []
 
     # ------------------------------------------------------------------ observations
     def _actor_obs(self):
@@ -71,6 +73,7 @@ class ResidualChunkEnv:
         self._obs = reset_with_seed(self.env, seed)
         self.checker.reset()
         self._k, self._t = 0, 0
+        self.frames = []
         self.was_grasped, self.dropped = False, False  # per-episode bookkeeping for failure analysis
         self._can0 = can_pos(self.env).copy()
         rel = can_pos(self.env)[:2] - self.bin1_xy
@@ -91,6 +94,8 @@ class ResidualChunkEnv:
             self._obs, _, _, _ = self.env.step(a)
             executed.append(a)
             self._t += 1
+            if self.record_camera:
+                self.frames.append(np.ascontiguousarray(self._obs[f"{self.record_camera}_image"][::-1]))
             g = is_grasping(self.env)
             if self.was_grasped and not g and can_pos(self.env)[2] > self._can0[2] + 0.03 \
                     and all(self.env.not_in_bin(can_pos(self.env), i) for i in range(4)):
